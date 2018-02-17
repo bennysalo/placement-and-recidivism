@@ -1,0 +1,119 @@
+---
+title: "Propensity scores"
+output: html_notebook
+date: 2018-02-12
+---
+```{r}
+library(stringr)
+```
+
+# Define sets of predictors
+
+```{r}
+offence_variables <- 
+  str_subset(names(included_sample), "^o_")
+
+static_preds <- 
+   c("ageFirstSentence_mr", "ageFirst_missing", "ageAtRelease", 
+     "ps_escapeHistory", "ps_prisonTerms_mr", "ps_comServiceTerms_mr", 
+     "ps_remandTerms_mr", "ps_defaultTerms_mr", "ps_info_missing", 
+     offence_variables)
+
+
+rita_factors <- 
+   c("economy_problems", "alcohol_problems", "resistance_change", 
+     "drug_related_probl", "aggressiveness", "employment_probl") 
+
+
+all_predictors <- c(static_preds, rita_factors)
+# all_variables <- c(all_predictors, 
+#                    "openPrison", "open01", "conditionalReleaseGranted", "cond01", "supervisedParole", "superv01", 
+#                    "reoffenceThisTerm")
+
+```
+
+
+Use these propensity scores as covariate in later glm analyses.
+
+To estimate these propensity scores we include the other exactly matched variables.
+
+```{r}
+propensity_formula_open <- as.formula(paste("open01 ~ (", paste(all_predictors, collapse = " + "),
+                                            ") * (conditionalReleaseGranted + supervisedParole)"))
+
+propensity_formula_cond <- as.formula(paste("cond01 ~ (", paste(all_predictors, collapse = " + "),
+                                            ") * (openPrison + supervisedParole)"))
+
+propensity_formula_superv <- as.formula(paste("superv01 ~ (", paste(all_predictors, collapse = " + "),
+                                            ") * (openPrison + conditionalReleaseGranted)"))
+
+```
+
+Use above formulas in logistic regression with the three conditions as outcomes.
+
+```{r}
+propensity_model_open <- glm(propensity_formula_open, family = binomial, data = included_sample)
+
+propensity_model_cond <- glm(propensity_formula_cond, family = binomial, data = included_sample)
+
+propensity_model_superv <- glm(propensity_formula_superv, family = binomial, data = included_sample)
+
+```
+
+Estimate propesity scores from the models above. Logit scores will be used as predictor in logistic regression. Probabilities will be used in graphs.
+
+```{r}
+included_sample <- included_sample %>% 
+  mutate(propensity_open_logit   = predict(propensity_model_open),
+         propensity_open_prob    = predict(propensity_model_open, type = "response"),
+         propensity_cond_logit   = predict(propensity_model_cond),
+         propensity_cond_prob    = predict(propensity_model_cond, type = "response"),
+         propensity_superv_logit = predict(propensity_model_superv),
+         propensity_superv_prob  = predict(propensity_model_superv, type = "response"))
+
+```
+
+Create subgroups
+
+
+op = Open Placement
+cr = Conditional Release
+ps = Parole Supervised
+
+0 = no, 1 = yes
+
+```{r}
+# Subgroups for examining effect of open prison
+subset_cr0_ps0<-
+  included_sample %>% 
+  filter(conditionalReleaseGranted == "cr_not_granted" & supervisedParole == "no supervision")
+
+subset_cr0_ps1 <-
+  included_sample %>% 
+  filter(conditionalReleaseGranted == "cr_not_granted" & supervisedParole == "supervised parole")
+
+# Subgroups for examining effect of conditional relase
+subset_op1_ps0  <-
+  included_sample %>% 
+  filter(openPrison == "open_prison" & supervisedParole == "no supervision")
+
+subset_op1_ps1 <- 
+  included_sample %>% 
+  filter(openPrison == "open_prison" & supervisedParole == "supervised parole")
+
+# Subgroups for examining effect of supervision
+subset_op0_cr0 <-
+  included_sample %>% 
+  filter(openPrison == "closed_prison" & conditionalReleaseGranted == "cr_not_granted" )
+
+subset_op1_cr0 <- 
+  included_sample %>% 
+  filter(openPrison == "open_prison" & conditionalReleaseGranted == "cr_not_granted" )
+
+subset_op1_cr1 <- 
+  included_sample %>% 
+  filter(openPrison == "open_prison" & conditionalReleaseGranted == "cr_granted" )
+
+
+```
+

@@ -1,0 +1,146 @@
+---
+title: "Matching"
+output: html_notebook
+date: 2018-02-12
+---
+
+```{r}
+library(MatchIt)
+library(stringr)
+
+```
+
+
+
+op = Open Placement
+cr = Conditional Release
+ps = Parole Supervised
+
+0 = no, 1 = yes
+
+
+
+
+
+```{r}
+
+my_matching <- function(my_data, effect_variable, balancing_variables = all_predictors, ...) {
+  require(MatchIt)
+  
+  # Intitate a list of results that will be returned
+   out <- list(effect_variable = effect_variable, data = my_data, match = NA)
+
+  # Write the formulas that will be needed
+  # Matching formulas. Here the other exactly matched variables are not included as predictors.
+   
+  write_formula <- function(outcome = dicotom_var) {
+    as.formula(paste(outcome, " ~ ", paste(balancing_variables, collapse = " + "))) 
+  } 
+
+   
+  # Write corresponding formula that will be used with 'matchit'
+  if        (effect_variable == "openPrison") {
+    dichotom_var <- "open01"
+    matching_formula <- write_formula("open01")
+    
+  } else if (effect_variable == "conditionalReleaseGranted") {
+    dichotom_var <- "cond01"
+    matching_formula <- write_formula("cond01")
+    
+  } else if (effect_variable == "supervisedParole") {
+    dichotom_var <- "superv01"
+    matching_formula <- write_formula("superv01")
+
+  } else {
+    warning("Could not determine effect")
+  }
+  
+  
+ # Do matching with prespecified parameters
+   
+   # Exclude irrelevant variables with missing values. 
+   # Matchit does not allow missing values and will warn if a used predictor is excluded
+   
+   index_no_missing <- apply(included_sample, MARGIN = 2, FUN = anyNA) == FALSE
+   no_missing_vars <- names(included_sample)[index_no_missing]
+  
+  out$match <- matchit(formula = matching_formula,
+                       data    = my_data[no_missing_vars], 
+                       method  = "nearest", discard = "both",
+                       distance = "logit", caliper = 0.25, ratio = 1)
+  
+  out$data$matched <- out$match$weights
+  out$data$matched_f <- factor(out$data$matched, levels = c(1,0), 
+                             labels = c("Matched", "Unmatched"))
+    
+  # Function to get category
+  get_category <- function(match_variable, effect_variable){
+    m <- match_variable
+    e <- effect_variable
+    ifelse                      (m == 1 & e == 0, "matched_0",
+            ifelse              (m == 1 & e == 1, "matched_1", 
+                   ifelse       (m == 0 & e == 0, "unmatched_0",
+                          ifelse(m == 0 & e == 1, "unmatched_1",
+                                 NA))))
+  }
+      
+  out$data$category <- get_category(match_variable  = out$data$matched,
+                                    effect_variable = out$data[[dichotom_var]])
+
+  return(out)
+}
+
+
+op_cr0_ps0 <-  my_matching(subset_cr0_ps0, "openPrison")
+op_cr0_ps1 <-  my_matching(subset_cr0_ps1, "openPrison")
+ 
+cr_op1_ps0 <-  my_matching(subset_op1_ps0, "conditionalReleaseGranted")
+cr_op1_ps1 <-  my_matching(subset_op1_ps1, "conditionalReleaseGranted")
+  
+ps_op0_cr0 <- my_matching(subset_op0_cr0, "supervisedParole")
+ps_op1_cr0 <- my_matching(subset_op1_cr0, "supervisedParole")
+ps_op1_cr1 <- my_matching(subset_op1_cr1, "supervisedParole")
+
+```
+
+Checks
+```{r}
+do_checks_I_want <- function(my_matching_output) {
+  
+  matchit_object <- my_matching_output$match
+  matchit_object
+  plot(matchit_object, type = "jitter")
+  plot(summary(matchit_object, standardize = TRUE))
+}
+```
+
+```{r}
+do_checks_I_want(op_cr0_ps0)
+```
+
+```{r}
+do_checks_I_want(op_cr0_ps1)
+```
+
+```{r}
+do_checks_I_want(cr_op1_ps0)
+```
+
+```{r}
+do_checks_I_want(cr_op1_ps1)
+```
+
+```{r}
+do_checks_I_want(ps_op0_cr0)
+```
+
+```{r}
+do_checks_I_want(ps_op1_cr0)
+```
+
+```{r}
+do_checks_I_want(ps_op1_cr1)
+```
+
+
+

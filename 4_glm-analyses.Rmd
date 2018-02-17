@@ -1,0 +1,406 @@
+---
+title: "Analyses and figures"
+output: html_notebook
+date: 2018-01-22
+---
+
+```{r}
+
+add_glm_tests <- function(results_list) {
+  if (results_list$effect_variable == "openPrison") {         # open placement
+    f_ancova      <- "reoffenceThisTerm ~ openPrison + propensity_open_logit"
+    f_interaction <- "reoffenceThisTerm ~ openPrison * propensity_open_logit"
+    
+  } else if (results_list$effect_variable == "conditionalReleaseGranted"){         # conditional release
+    f_ancova      <- "reoffenceThisTerm ~ conditionalReleaseGranted + propensity_cond_logit"
+    f_interaction <- "reoffenceThisTerm ~ conditionalReleaseGranted * propensity_cond_logit"
+    
+  } else if (results_list$effect_variable == "supervisedParole") {         #  parole supervised
+    f_ancova      <- "reoffenceThisTerm ~ supervisedParole + propensity_superv_logit"
+    f_interaction <- "reoffenceThisTerm ~ supervisedParole * propensity_superv_logit"
+  } else {
+    warning('Could not specificy effect')
+  }
+  
+  used_data <- results_list$data[results_list$data$matched == 1, ]
+  
+  results_list$glm_ancova      <- glm(f_ancova,      
+                                          family = binomial, data = used_data)
+  results_list$glm_interaction <- glm(f_interaction, 
+                                          family = binomial, data = used_data)
+
+  return(results_list)
+}
+
+
+```
+
+```{r}
+op_cr0_ps0 <- add_glm_tests(op_cr0_ps0)
+op_cr0_ps1 <- add_glm_tests(op_cr0_ps1)
+
+cr_op1_ps0 <- add_glm_tests(cr_op1_ps0)
+cr_op1_ps1 <- add_glm_tests(cr_op1_ps1)
+  
+ps_op0_cr0 <- add_glm_tests(ps_op0_cr0)
+ps_op1_cr0 <- add_glm_tests(ps_op1_cr0)
+ps_op1_cr1 <- add_glm_tests(ps_op1_cr1)
+
+```
+
+Write a function to plot interesting results
+
+```{r}
+make_graph <- function (results_list, ind_variable, 
+                        in_comb_with = NA) {
+
+
+
+if          (ind_variable == "openPrison") {
+  title         =  "Effect of placement"
+  legend_name   =  "Placement"
+  legend_breaks =  c("open_prison", "closed_prison")
+  legend_labels =  c("Open Prison", "Closed Prison")
+  propens_score = "propensity_open_prob"
+
+} else if (ind_variable == "conditionalReleaseGranted") {
+  title         =  "Effect of conditional release (CR)"
+  legend_name   =  "CR Status"
+  legend_breaks =  c("cr_granted", "cr_not_granted")
+  legend_labels =  c("Successful CR", "No CR")
+  propens_score = "propensity_cond_prob"
+  
+} else if (ind_variable == "supervisedParole") {
+  title         =  "Effect of parole supervision"
+  legend_name   =  "Supervision"
+  legend_breaks =  c("no supervision", "supervised parole")
+  legend_labels =  c("No supervision", "Parole supervised")  
+  propens_score = "propensity_superv_prob"
+  
+} else {
+    warning("Could not find effect")
+}
+  
+tick_breaks <-  c(0, 0.25, 0.5, 0.75, 1)
+tick_labels <-  c("0", "", ".5", "", "1" )   
+
+subtitle    <- paste("In combination with" , in_comb_with)
+                          
+plot_data <- data.frame(
+  propensity_score    = results_list$data[[propens_score]],
+  est_prob_recidivism = predict(results_list$glm_interaction, 
+                                type = "response", newdata = results_list$data),
+  ind_variable        = results_list$data[[ind_variable]],
+  matched_f           = results_list$data[["matched_f"]]
+) 
+
+
+# A better alternative to the line plot might be to just draw the line generated from regression
+                          # coefficients and limit to the max and min propensities
+                          
+
+# For the upper line plot only include matched individuals 
+
+
+
+# Create the line plot
+line_plot <- 
+  plot_data %>% 
+  filter(matched_f == "Matched") %>% 
+  ggplot(aes(x = propensity_score, 
+             y = est_prob_recidivism, 
+             col = ind_variable)) + 
+  geom_line() +
+  ggtitle(title, subtitle = subtitle) +
+  xlab(NULL) + 
+  ylab("Est. probability of recidivism") +
+  scale_x_continuous(limits = c(0,1), breaks = tick_breaks, labels = tick_labels) +
+  scale_y_continuous(limits = c(0,1), breaks = tick_breaks, labels = tick_labels) +
+  scale_color_discrete(name = legend_name,
+                       breaks = legend_breaks,
+                       labels = legend_labels) +
+  theme_tufte(base_family = "sans") +
+  theme(legend.position = c(0.9, 0.9))
+  
+  
+
+# Create the bottom jitter plot
+jitter_plot <- plot_data %>% 
+  ggplot(aes(x = propensity_score,
+             y = ind_variable,
+             col = ind_variable)) +
+  geom_jitter() +
+  xlab("Propensity score") +
+  ylab("Matching category") +
+  scale_x_continuous(limits = c(0,1), breaks = tick_breaks, labels = tick_labels) +
+  scale_y_discrete(breaks = NULL) +
+  theme_tufte(base_family = "sans") +
+  theme(legend.position = "none") + 
+  facet_grid(matched_f ~ .) 
+  
+  
+# Translate ggplot objects to grobs         
+
+line_grob <- ggplotGrob(line_plot)
+jitter_grob <- ggplotGrob(jitter_plot)
+
+# Determine the size of the three leftmost areas according to the needs of the line_plot
+jitter_grob$widths[1:3] <- line_grob$widths[1:3]
+# Now set the number of column areas and their widths to be that of the jitter grob
+line_grob$widths <- jitter_grob$widths
+
+# Arrange the two grobs in two rows, with the first row being propostionally bigger.
+grid.arrange(line_grob, jitter_grob, nrow = 2, heights = c(1.3,1))
+}
+
+```
+```{r}
+
+g_o1 <-
+make_graph(op_cr0_ps0, "openPrison",
+           "no conditional release and no supervision of parole")
+g_o2 <- 
+make_graph(op_cr0_ps1, "openPrison", 
+           "no conditional release but with supervision of parole")
+
+g_c1 <-
+make_graph(cr_op1_ps0, "conditionalReleaseGranted",
+           "open prison and no supervision of parole")
+g_c2 <- 
+make_graph(cr_op1_ps1, "conditionalReleaseGranted",
+           "open prison and supervision of parole")
+
+make_graph(ps_op0_cr0, "supervisedParole",
+           "closed prison and no conditional release")
+make_graph(ps_op1_cr0, "supervisedParole",
+           "open prison and no conditional release")
+make_graph(ps_op1_cr1, "supervisedParole",
+           "open prison and conditional release")
+```
+
+```{r}
+grid.arrange(g_o1, g_o2)
+```
+```{r}
+grid.arrange(g_c1, g_c2)
+```
+
+
+## STUFF TO GET CONFIDENCE INTERVALS
+
+```{r}
+test_list <- op_cr0_ps0
+
+plot_data<- test_list$data %>% 
+  filter(matched == 1)
+
+estimations <- predict(test_list$glm_interaction, type = "link", newdata = plot_data, se.fit = TRUE)
+
+estimations$ci95lo <- estimations$fit + estimations$se.fit * qnorm(0.025)
+estimations$ci95hi <- estimations$fit + estimations$se.fit * qnorm(0.975)
+
+plot_data <- 
+  mutate(plot_data, 
+         logit = estimations$fit,
+         ci95lo = estimations$ci95lo,
+         ci95hi = estimations$ci95hi)
+
+open <- filter(plot_data, open01 == 1)
+
+
+calc_prob_from_logit <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+
+plot_data <- plot_data %>% 
+  mutate(prob = calc_prob_from_logit(logit),
+         ci95lo_prob = calc_prob_from_logit(ci95lo),
+         ci95hi_prob = calc_prob_from_logit(ci95hi))
+
+
+
+ggplot(plot_data, aes(x = propensity_open_logit, y = prob, col = openPrison)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = ci95lo_prob, ymax = ci95hi_prob, alpha = 0.1))
+
+
+
+ggplot(test_list$data, aes(x = propensity_open_prob, y = category)) +
+  geom_jitter()
+
+
+
+test <- predict(test_list$glm_interaction, type = "response", newdata = plot_data, se.fit = TRUE)
+
+plot(test$fit, test$se.fit)
+
+```
+
+
+#### OLD STUFF
+
+
+
+Convert distance measure to logodds
+
+```{r}
+
+calculate_logodds <- function(prob)    {log(prob / (1 - prob))}
+calculate_probs   <- function(logodds) {exp(logodds)/(exp(logodds) + 1)}
+
+mdata_effect_open$distance_logodds <- calculate_logodds(data_EFFopen_INnoCond$distance)
+mdata_effect_cr$distance_logodds   <- calculate_logodds(data_EFFcond_INopen$distance)
+```
+
+```{r}
+get_chi_stats <- function(glm_model) {
+  dchisq = glm_model$null.deviance - glm_model$deviance
+  ddf    = glm_model$df.null       - glm_model$df.residual
+  p      = 1 - pchisq(q = dchisq, df = ddf)
+  data_frame(dchisq, ddf, p)
+
+}
+```
+
+
+
+```{r}
+test_G_open_noint <- glm(formula = "reoffenceThisTerm ~ open01 + scale(distance_logodds)", family = binomial, 
+                             data = mdata_effect_open)
+
+test_G_open_int <- glm(formula = "reoffenceThisTerm ~ open01 * scale(distance_logodds)", family = binomial, 
+                             data = mdata_effect_open)
+
+
+get_chi_stats(test_G_open_noint)
+get_chi_stats(test_G_open_int)
+anova(test_G_open_noint, test_G_open_int, test = "Chisq")
+
+```
+
+```{r}
+test_V_open_noint <- glm(formula = "newOc_violent ~ open01 + scale(distance_logodds)", family = binomial, 
+                             data = mdata_effect_open)
+
+test_V_open_int <- glm(formula = "newOc_violent ~ open01 * scale(distance_logodds)", family = binomial, 
+                             data = mdata_effect_open)
+
+get_chi_stats(test_V_open_noint)
+get_chi_stats(test_V_open_int)
+anova(test_V_open_noint, test_V_open_int, test = "Chisq")
+```
+
+```{r}
+test_G_cr_noint <- glm(formula = "reoffenceThisTerm ~ cond01 + scale(distance_logodds)", family = binomial, 
+                             data = mdata_effect_cr)
+
+test_G_cr_int <- glm(formula = "reoffenceThisTerm ~ cond01 * scale(distance_logodds)", family = binomial, 
+                             data = mdata_effect_cr)
+
+get_chi_stats(test_G_cr_noint)
+get_chi_stats(test_G_cr_int)
+anova(test_G_cr_noint, test_G_cr_int, test = "Chisq")
+
+```
+
+```{r}
+test_V_cr_noint <- glm(formula = "newOc_violent ~ cond01 + scale(distance_logodds)", family = binomial, 
+                             data = mdata_effect_cr)
+
+test_V_cr_int <- glm(formula = "newOc_violent ~ cond01 * scale(distance_logodds)", family = binomial, 
+                             data = mdata_effect_cr)
+
+get_chi_stats(test_V_cr_noint)
+get_chi_stats(test_V_cr_int)
+anova(test_V_cr_noint, test_V_cr_int, test = "Chisq")
+
+
+
+```
+
+
+
+
+
+```{r}
+put_coefs_in_tble <- function(fitted_model) {
+    as.data.frame(summary(fitted_model)$coefficients) %>% 
+  rownames_to_column()
+
+}
+
+
+tble_G_o_1 <- put_coefs_in_tble(test_G_open_noint)
+tble_G_o_2 <- put_coefs_in_tble(test_G_open_int)
+
+tble_V_o_1 <- put_coefs_in_tble(test_V_open_noint)
+tble_V_o_2 <- put_coefs_in_tble(test_V_open_int)
+
+
+tble_G_cr_1 <- put_coefs_in_tble(test_G_cr_noint)
+tble_G_cr_2 <- put_coefs_in_tble(test_G_cr_int)
+
+tble_V_cr_1 <- put_coefs_in_tble(test_V_cr_noint)
+tble_V_cr_2 <- put_coefs_in_tble(test_V_cr_int)
+
+```
+
+Trim down to the info I am going to display
+```{r}
+edit_coef_tble <- function (tble) {
+  tble %>%
+  select(term = 1, B = 2, SE = 3, p = 5) %>% 
+  mutate(bonf_corr_p = p * 4,
+         stars = ifelse(bonf_corr_p < 0.001, "***", 
+                        ifelse(bonf_corr_p < 0.01, "**",
+                               ifelse(bonf_corr_p < 0.05, "*", "")))) %>% 
+  mutate(B = round(B, 3),
+         SE = round(SE, 3)) %>% 
+  select(1,2,stars,3)
+}
+
+tble_G_o_1 <- edit_coef_tble(tble_G_o_1)
+tble_G_o_2 <- edit_coef_tble(tble_G_o_2)
+
+tble_V_o_1 <- edit_coef_tble(tble_V_o_1)
+tble_V_o_2 <- edit_coef_tble(tble_V_o_2)
+
+
+tble_G_cr_1 <- edit_coef_tble(tble_G_cr_1)
+tble_G_cr_2 <- edit_coef_tble(tble_G_cr_2)
+
+tble_V_cr_1 <- edit_coef_tble(tble_V_cr_1)
+tble_V_cr_2 <- edit_coef_tble(tble_V_cr_2)
+```
+
+Join tables
+
+```{r}
+
+tble_G_o <- full_join(tble_G_o_1, tble_G_o_2, by = "term", suffix = c("_1", "_2")) 
+tble_V_o <- full_join(tble_V_o_1, tble_V_o_2, by = "term", suffix = c("_1", "_2")) 
+
+tble_G_cr <- full_join(tble_G_cr_1, tble_G_cr_2, by = "term", suffix = c("_1", "_2")) 
+tble_V_cr <- full_join(tble_V_cr_1, tble_V_cr_2, by = "term", suffix = c("_1", "_2")) 
+
+```
+
+
+```{r}
+tble_o  <- full_join(tble_G_o,  tble_V_o, by = "term", suffix = c("_G", "_V"))
+tble_cr <- full_join(tble_G_cr, tble_V_cr, by = "term", suffix = c("_G", "_V"))
+
+glms_tble <- bind_rows(tble_o, tble_cr)
+```
+
+```{r}
+write.csv2(glms_tble, "C:/Users/benny_000/Dropbox/AAAKTUELLT/Manuskript 3/resultat/glms_table.csv")
+```
+
+
+
+
+
