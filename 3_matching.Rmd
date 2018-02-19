@@ -7,10 +7,11 @@ date: 2018-02-12
 ```{r}
 library(MatchIt)
 library(stringr)
+sessionInfo()
 
 ```
 
-
+Key for abbreviations:
 
 op = Open Placement
 cr = Conditional Release
@@ -21,14 +22,19 @@ ps = Parole Supervised
 
 
 
+Write a function for matching. This function takes the following arguments:
++ 'subset_data' - A data frame. The subset previously generated that only includes individuals who have gotten the same treatment except for the effect variable. 
++ 'effect_variable' - A character string. The name of the variable that constitutes the independent variable in later analysis. The matching should thus produce two groups that are blananced on every covariate except this variable.
++ 'blancing_variables' - A vector of character stings. The names of all the variables that serve as covariates. The default is a previously defined vector 'all_predictors'.
+
 
 ```{r}
 
-my_matching <- function(my_data, effect_variable, balancing_variables = all_predictors, ...) {
+my_matching <- function(subset_data, effect_variable, balancing_variables = all_predictors, ...) {
   require(MatchIt)
   
   # Intitate a list of results that will be returned
-   out <- list(effect_variable = effect_variable, data = my_data, match = NA)
+   out <- list(effect_variable = effect_variable, data = subset_data, match = NA)
 
   # Write the formulas that will be needed
   # Matching formulas. Here the other exactly matched variables are not included as predictors.
@@ -39,6 +45,7 @@ my_matching <- function(my_data, effect_variable, balancing_variables = all_pred
 
    
   # Write corresponding formula that will be used with 'matchit'
+  # Different formulas depending on what the effect_variable is
   if        (effect_variable == "openPrison") {
     dichotom_var <- "open01"
     matching_formula <- write_formula("open01")
@@ -59,13 +66,15 @@ my_matching <- function(my_data, effect_variable, balancing_variables = all_pred
  # Do matching with prespecified parameters
    
    # Exclude irrelevant variables with missing values. 
-   # Matchit does not allow missing values and will warn if a used predictor is excluded
+   # Matchit does not allow missing values. 
+   # All included predictors are complete data. Matchit will not run if a
+      # used predictor is excluded.
    
    index_no_missing <- apply(included_sample, MARGIN = 2, FUN = anyNA) == FALSE
    no_missing_vars <- names(included_sample)[index_no_missing]
   
   out$match <- matchit(formula = matching_formula,
-                       data    = my_data[no_missing_vars], 
+                       data    = subset_data[no_missing_vars], 
                        method  = "nearest", discard = "both",
                        distance = "logit", caliper = 0.25, ratio = 1)
   
@@ -74,6 +83,7 @@ my_matching <- function(my_data, effect_variable, balancing_variables = all_pred
                              labels = c("Matched", "Unmatched"))
     
   # Function to get category
+  # Right now this is not needed (2018-02-19)
   get_category <- function(match_variable, effect_variable){
     m <- match_variable
     e <- effect_variable
@@ -83,7 +93,8 @@ my_matching <- function(my_data, effect_variable, balancing_variables = all_pred
                           ifelse(m == 0 & e == 1, "unmatched_1",
                                  NA))))
   }
-      
+   
+  # Add a category variable   
   out$data$category <- get_category(match_variable  = out$data$matched,
                                     effect_variable = out$data[[dichotom_var]])
 
@@ -91,6 +102,13 @@ my_matching <- function(my_data, effect_variable, balancing_variables = all_pred
 }
 
 
+
+```
+
+
+# Do the matching for each subset.
+
+```{r}
 op_cr0_ps0 <-  my_matching(subset_cr0_ps0, "openPrison")
 op_cr0_ps1 <-  my_matching(subset_cr0_ps1, "openPrison")
  
@@ -100,7 +118,6 @@ cr_op1_ps1 <-  my_matching(subset_op1_ps1, "conditionalReleaseGranted")
 ps_op0_cr0 <- my_matching(subset_op0_cr0, "supervisedParole")
 ps_op1_cr0 <- my_matching(subset_op1_cr0, "supervisedParole")
 ps_op1_cr1 <- my_matching(subset_op1_cr1, "supervisedParole")
-
 ```
 
 Checks
@@ -120,6 +137,7 @@ do_checks_I_want(op_cr0_ps0)
 
 ```{r}
 do_checks_I_want(op_cr0_ps1)
+
 ```
 
 ```{r}

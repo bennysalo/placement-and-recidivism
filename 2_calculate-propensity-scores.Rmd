@@ -4,7 +4,9 @@ output: html_notebook
 date: 2018-02-12
 ---
 ```{r}
+library(tidyverse)
 library(stringr)
+sessionInfo()
 ```
 
 # Define sets of predictors
@@ -26,9 +28,6 @@ rita_factors <-
 
 
 all_predictors <- c(static_preds, rita_factors)
-# all_variables <- c(all_predictors, 
-#                    "openPrison", "open01", "conditionalReleaseGranted", "cond01", "supervisedParole", "superv01", 
-#                    "reoffenceThisTerm")
 
 ```
 
