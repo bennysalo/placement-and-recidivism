@@ -3,6 +3,10 @@ title: "Propensity scores"
 output: html_notebook
 date: 2018-02-12
 ---
+
+
+
+
 ```{r}
 library(tidyverse)
 library(stringr)
@@ -99,19 +103,6 @@ subset_op1_ps0  <-
 subset_op1_ps1 <- 
   included_sample %>% 
   filter(openPrison == "open_prison" & supervisedParole == "supervised parole")
-
-# Subgroups for examining effect of supervision
-subset_op0_cr0 <-
-  included_sample %>% 
-  filter(openPrison == "closed_prison" & conditionalReleaseGranted == "cr_not_granted" )
-
-subset_op1_cr0 <- 
-  included_sample %>% 
-  filter(openPrison == "open_prison" & conditionalReleaseGranted == "cr_not_granted" )
-
-subset_op1_cr1 <- 
-  included_sample %>% 
-  filter(openPrison == "open_prison" & conditionalReleaseGranted == "cr_granted" )
 
 
 ```

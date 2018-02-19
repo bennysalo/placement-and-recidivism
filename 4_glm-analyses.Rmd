@@ -53,10 +53,6 @@ op_cr0_ps1 <- add_glm_tests(op_cr0_ps1)
 
 cr_op1_ps0 <- add_glm_tests(cr_op1_ps0)
 cr_op1_ps1 <- add_glm_tests(cr_op1_ps1)
-  
-ps_op0_cr0 <- add_glm_tests(ps_op0_cr0)
-ps_op1_cr0 <- add_glm_tests(ps_op1_cr0)
-ps_op1_cr1 <- add_glm_tests(ps_op1_cr1)
 
 ```
 

@@ -115,9 +115,6 @@ op_cr0_ps1 <-  my_matching(subset_cr0_ps1, "openPrison")
 cr_op1_ps0 <-  my_matching(subset_op1_ps0, "conditionalReleaseGranted")
 cr_op1_ps1 <-  my_matching(subset_op1_ps1, "conditionalReleaseGranted")
   
-ps_op0_cr0 <- my_matching(subset_op0_cr0, "supervisedParole")
-ps_op1_cr0 <- my_matching(subset_op1_cr0, "supervisedParole")
-ps_op1_cr1 <- my_matching(subset_op1_cr1, "supervisedParole")
 ```
 
 Checks
@@ -137,7 +134,6 @@ do_checks_I_want(op_cr0_ps0)
 
 ```{r}
 do_checks_I_want(op_cr0_ps1)
-
 ```
 
 ```{r}
@@ -146,18 +142,6 @@ do_checks_I_want(cr_op1_ps0)
 
 ```{r}
 do_checks_I_want(cr_op1_ps1)
-```
-
-```{r}
-do_checks_I_want(ps_op0_cr0)
-```
-
-```{r}
-do_checks_I_want(ps_op1_cr0)
-```
-
-```{r}
-do_checks_I_want(ps_op1_cr1)
 ```
 
 
