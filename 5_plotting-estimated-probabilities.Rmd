@@ -131,12 +131,6 @@ g_c2 <-
 make_graph(cr_op1_ps1, "conditionalReleaseGranted",
            "open prison and supervision of parole")
 
-make_graph(ps_op0_cr0, "supervisedParole",
-           "closed prison and no conditional release")
-make_graph(ps_op1_cr0, "supervisedParole",
-           "open prison and no conditional release")
-make_graph(ps_op1_cr1, "supervisedParole",
-           "open prison and conditional release")
 ```
 
 ```{r}
