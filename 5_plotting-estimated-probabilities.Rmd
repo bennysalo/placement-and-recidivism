@@ -26,14 +26,7 @@ if          (ind_variable == "openPrison") {
   legend_breaks =  c("cr_granted", "cr_not_granted")
   legend_labels =  c("Successful CR", "No CR")
   propens_score = "propensity_cond_prob"
-  
-} else if (ind_variable == "supervisedParole") {
-  title         =  "Effect of parole supervision"
-  legend_name   =  "Supervision"
-  legend_breaks =  c("no supervision", "supervised parole")
-  legend_labels =  c("No supervision", "Parole supervised")  
-  propens_score = "propensity_superv_prob"
-  
+
 } else {
     warning("Could not find effect")
 }

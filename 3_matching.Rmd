@@ -53,10 +53,6 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
   } else if (effect_variable == "conditionalReleaseGranted") {
     dichotom_var <- "cond01"
     matching_formula <- write_formula("cond01")
-    
-  } else if (effect_variable == "supervisedParole") {
-    dichotom_var <- "superv01"
-    matching_formula <- write_formula("superv01")
 
   } else {
     warning("Could not determine effect")
