@@ -60,6 +60,78 @@ ps_op1_cr1 <- add_glm_tests(ps_op1_cr1)
 
 ```
 
+Write a function to get the chi-square value for the models and associated p-values
 
+```{r}
+get_chi_stats <- function(glm_model) {
+  d_chisq = glm_model$null.deviance - glm_model$deviance
+  d_df    = glm_model$df.null       - glm_model$df.residual
+  p       = 1 - pchisq(q = dchisq, df = ddf)
+  data_frame(d_chisq, d_df, p)
+}
+```
+
+
+Results for the effect of placement in open prison
+- in combination with no conditional release
+- among individuals NOT SUPERVISED during parole
+
+No main effect. Adding interaction term is not a statistically significant improvement.
+
+```{r}
+summary      (op_cr0_ps0$glm_ancova)
+get_chi_stats(op_cr0_ps0$glm_ancova)
+
+summary      (op_cr0_ps0$glm_interaction)
+get_chi_stats(op_cr0_ps0$glm_interaction)
+
+anova(op_cr0_ps0$glm_ancova, op_cr0_ps0$glm_interaction, test = "Chisq")
+
+```
+
+Results for the effect of placement in open prison
+- in combination with no conditional release
+- among individuals SUPERVISED during parole
+
+No main effect. Adding interaction term is not a statistically significant improvement.
+```{r}
+summary(op_cr0_ps1$glm_ancova)
+get_chi_stats(op_cr0_ps1$glm_ancova)
+
+summary(op_cr0_ps0$glm_interaction)
+get_chi_stats(op_cr0_ps0$glm_interaction)
+
+anova(op_cr0_ps0$glm_ancova, op_cr0_ps0$glm_interaction, test = "Chisq")
+
+```
+
+
+We aggregate the logistic regression coefficients for the independent variable from the two ANCOVA-style analyses. We do this with a random effects meta-analysis of two effects. We are thus examining the mean effect over supervised and non-supervised individuals.
+
+```{r}
+library(metafor)
+
+coefs_open_prison <- 
+  rbind(
+  summary(op_cr0_ps0$glm_ancova)$coefficients["openPrisonopen_prison", 1:2],
+  summary(op_cr0_ps1$glm_ancova)$coefficients["openPrisonopen_prison", 1:2]
+) 
+
+rma(yi = coefs_open_prison[,1], sei = coefs_open_prison[,2], measure = "OR")
+
+
+```
+```{r}
+coefs_cr <- 
+  rbind(
+  summary(cr_op1_ps0$glm_ancova)$coefficients["conditionalReleaseGranted.L", 1:2],
+  summary(cr_op1_ps1$glm_ancova)$coefficients["conditionalReleaseGranted.L", 1:2]
+) 
+
+rma(yi = coefs_cr[,1], sei = coefs_cr[,2], measure = "OR")
+
+
+
+```
 
 
