@@ -1,11 +1,8 @@
 ---
 title: "Propensity scores"
 output: html_notebook
-date: 2018-02-12
+date: '2018-02-12'
 ---
-
-
-
 
 ```{r}
 library(tidyverse)

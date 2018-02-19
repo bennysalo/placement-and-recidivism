@@ -1,7 +1,7 @@
 ---
 title: "Create pertinent subgroups"
-output: pdf
-date: 2018-02-12
+output: html_notebook
+date: '2018-02-12'
 ---
 Load needed packages
 
