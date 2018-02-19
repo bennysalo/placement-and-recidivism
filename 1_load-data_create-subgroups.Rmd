@@ -3,19 +3,21 @@ title: "Create pertinent subgroups"
 output: pdf
 date: 2018-02-12
 ---
-
+Load needed packages
 
 ```{r}
 library(tidyverse)
+sessionInfo()
 ```
 
-Import data with only males
+Import dataset 'FinPrisonMales'. This version of the data includes only males. Data is not publicly available. Check https://osf.io/e9dzf/ for a description of the data, including inclusion and exclusion criteria and summary statistics. (This description will be uploaded at a later date - it is not yet avaialable as of 2018-02-19.)
 
 ```{r}
 rm(list = ls())
 FinPrisonMales <- 
   readRDS("C:/Users/benny_000/Dropbox/AAAKTUELLT/FinPrisonData/FinPrisonMales.rds")
 ```
+
 
 Create new variables. MatchIt needs dichotomous response variables. 
 
@@ -51,12 +53,18 @@ included_sample <-
 
 ```
 
+This leaves us with the following breakdown of individuals.
+```{r}
+table(included_sample$openPrison, included_sample$conditionalReleaseOutcome)
+```
+
+Further we seperate those with their parole supervised and those without supervision.
 
 ```{r}
-table(included_sample$openPrison, included_sample$conditionalReleaseGranted)
-table(included_sample$openPrison, included_sample$conditionalReleaseOutcome)
-
 table(included_sample$supervisedParole, included_sample$conditionalReleaseOutcome, included_sample$openPrison)
 ```
 
+The smallest groups (individuals placed in closed prison and not granted conditional release) will not be examined further. That leaves us with the possiblity to examine 
+- the effect of placement among those not granted conditional release
+- the effect of conditional release among those placed in open prison at the end of their sentence.
 
