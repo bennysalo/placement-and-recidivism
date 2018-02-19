@@ -5,6 +5,14 @@ output:
   html_notebook: default
 ---
 
+
+```{r}
+library(ggthemes)
+library(gridExtra)
+sessionInfo()
+```
+
+
 Write a function to plot interesting results
 
 ```{r}
@@ -18,14 +26,14 @@ if          (ind_variable == "openPrison") {
   legend_name   =  "Placement"
   legend_breaks =  c("open_prison", "closed_prison")
   legend_labels =  c("Open Prison", "Closed Prison")
-  propens_score = "propensity_open_prob"
+  propens_score = "distance_logit"
 
 } else if (ind_variable == "conditionalReleaseGranted") {
   title         =  "Effect of conditional release (CR)"
   legend_name   =  "CR Status"
   legend_breaks =  c("cr_granted", "cr_not_granted")
   legend_labels =  c("Successful CR", "No CR")
-  propens_score = "propensity_cond_prob"
+  propens_score = "distance_logit"
 
 } else {
     warning("Could not find effect")

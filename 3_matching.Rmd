@@ -74,6 +74,11 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
                        method  = "nearest", discard = "both",
                        distance = "logit", caliper = 0.25, ratio = 1)
   
+  # Add the calculated distance measure to the data frame
+  out$data$distance_prob  <- out$match$distance
+  # Calculate logit for this that can be used in the logistic regression
+  out$data$distance_logit <- log(out$match$distance / (1 - out$match$distance))
+  
   out$data$matched <- out$match$weights
   out$data$matched_f <- factor(out$data$matched, levels = c(1,0), 
                              labels = c("Matched", "Unmatched"))

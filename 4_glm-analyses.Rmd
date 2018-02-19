@@ -18,12 +18,12 @@ Estimated probabilities from 2) will be used in the plots.
 
 add_glm_tests <- function(results_list) {
   if (results_list$effect_variable == "openPrison") {         # open placement
-    f_ancova      <- "reoffenceThisTerm ~ openPrison + propensity_open_logit"
-    f_interaction <- "reoffenceThisTerm ~ openPrison * propensity_open_logit"
+    f_ancova      <- "reoffenceThisTerm ~ openPrison + distance_logit"
+    f_interaction <- "reoffenceThisTerm ~ openPrison * distance_logit"
     
   } else if (results_list$effect_variable == "conditionalReleaseGranted"){         # conditional release
-    f_ancova      <- "reoffenceThisTerm ~ conditionalReleaseGranted + propensity_cond_logit"
-    f_interaction <- "reoffenceThisTerm ~ conditionalReleaseGranted * propensity_cond_logit"
+    f_ancova      <- "reoffenceThisTerm ~ conditionalReleaseGranted + distance_logit"
+    f_interaction <- "reoffenceThisTerm ~ conditionalReleaseGranted * distance_logit"
     
   } else {
     warning('Could not specificy effect')
