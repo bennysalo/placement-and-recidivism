@@ -294,17 +294,6 @@ add_glm_tests <- function(results_list) {
 
 ```
 
-Use this function on the results lists.
-
-```{r}
-op_cr0_ps0 <- add_glm_tests(op_cr0_ps0)
-op_cr0_ps1 <- add_glm_tests(op_cr0_ps1)
-
-cr_op1_ps0 <- add_glm_tests(cr_op1_ps0)
-cr_op1_ps1 <- add_glm_tests(cr_op1_ps1)
-
-```
-
 Write a function to get the chi-square value for the models and associated p-values
 
 ```{r}
@@ -316,6 +305,24 @@ get_chi_stats <- function(glm_model) {
 }
 ```
 
+
+
+## Run analyses
+
+Use this function on the results lists.
+
+```{r}
+op_cr0_ps0 <- add_glm_tests(op_cr0_ps0)
+op_cr0_ps1 <- add_glm_tests(op_cr0_ps1)
+
+cr_op1_ps0 <- add_glm_tests(cr_op1_ps0)
+cr_op1_ps1 <- add_glm_tests(cr_op1_ps1)
+
+```
+
+## Results
+
+### Effect: Open Prison. Subset: NOT Supervised 
 
 Results for the effect of placement in open prison
 - in combination with no conditional release
@@ -333,6 +340,8 @@ get_chi_stats(op_cr0_ps0$glm_interaction)
 anova(op_cr0_ps0$glm_ancova, op_cr0_ps0$glm_interaction, test = "Chisq")
 
 ```
+### Effect: Open Prison. Subset: Supervised 
+
 Results for the effect of placement in open prison
 - in combination with no conditional release
 - among individuals SUPERVISED during parole
@@ -350,6 +359,7 @@ anova(op_cr0_ps1$glm_ancova, op_cr0_ps1$glm_interaction, test = "Chisq")
 
 ```
 
+### Effect: CR. Subset: NOT Supervised 
 
 Results for the effect of conditional release
 - in combination with placement in open prison
@@ -367,6 +377,8 @@ get_chi_stats(cr_op1_ps0$glm_interaction)
 anova(cr_op1_ps0$glm_ancova, cr_op1_ps0$glm_interaction, test = "Chisq")
 
 ```
+### Effect: CR. Subset: Supervised 
+
 Results for the effect of conditional release
 - in combination with placement in open prison
 - among individuals SUPERVISED during parole
