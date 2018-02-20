@@ -256,7 +256,7 @@ do_checks_I_want(cr_op1_ps1)
 
 # Logistic regression analyses
 
-In this part of the analyses we do the logistic regression analyses and plot the results.
+In this part of the analyses we do the logistic regression analyses.
 
 ## Function for logistic regressions
 
