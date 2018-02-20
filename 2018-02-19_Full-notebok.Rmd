@@ -166,12 +166,10 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
   # Different formulas depending on what the effect_variable is
   if        (effect_variable == "openPrison") {
     subset_data$open01 <- as.numeric(subset_data$openPrison) - 1
-    dichotom_var       <- "open01"
     matching_formula   <- write_formula("open01")
     
   } else if (effect_variable == "conditionalReleaseGranted") {
     subset_data$cond01 <- as.numeric(subset_data$conditionalReleaseGranted) - 1
-    dichotom_var       <- "cond01"
     matching_formula   <- write_formula("cond01")
 
   } else {
@@ -202,22 +200,6 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
   out$data$matched <- out$match$weights
   out$data$matched_f <- factor(out$data$matched, levels = c(1,0), 
                              labels = c("Matched", "Unmatched"))
-    
-  # Function to get category
-  # Right now this is not needed (2018-02-19)
-  get_category <- function(match_variable, effect_variable){
-    m <- match_variable
-    e <- effect_variable
-    ifelse                      (m == 1 & e == 0, "matched_0",
-            ifelse              (m == 1 & e == 1, "matched_1", 
-                   ifelse       (m == 0 & e == 0, "unmatched_0",
-                          ifelse(m == 0 & e == 1, "unmatched_1",
-                                 NA))))
-  }
-   
-  # Add a category variable   
-  out$data$category <- get_category(match_variable  = out$data$matched,
-                                    effect_variable = out$data[[dichotom_var]])
 
   return(out)
 }
