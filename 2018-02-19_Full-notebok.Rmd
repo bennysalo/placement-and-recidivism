@@ -1,6 +1,9 @@
 ---
 title: "Analyses for 'The practices of open prison and conditional release and their relation to recidivism rates'"
-output: rmarkdown::github_document
+output:
+  github_document:
+    toc: true
+
 ---
 
 # Setup
