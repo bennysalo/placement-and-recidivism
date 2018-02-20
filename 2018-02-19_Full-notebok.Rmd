@@ -165,12 +165,14 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
   # matchit needs dichotomous outcomes - create those here 
   # Different formulas depending on what the effect_variable is
   if        (effect_variable == "openPrison") {
-    subset_data$open01 <- as.numeric(subset_data$openPrison - 1)
-    matching_formula <- write_formula("openPrison")
+    subset_data$open01 <- as.numeric(subset_data$openPrison) - 1
+    dichotom_var       <- "open01"
+    matching_formula   <- write_formula("open01")
     
   } else if (effect_variable == "conditionalReleaseGranted") {
-    subset_data$cond01 <- as.numeric(subset_data$conditionalReleaseGranted - 1)
-    matching_formula <- write_formula("cond01")
+    subset_data$cond01 <- as.numeric(subset_data$conditionalReleaseGranted) - 1
+    dichotom_var       <- "cond01"
+    matching_formula   <- write_formula("cond01")
 
   } else {
     warning("Could not determine effect")
@@ -184,8 +186,8 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
    # All included predictors are complete data. Matchit will not run if a
       # used predictor is excluded.
    
-  index_no_missing <- apply(included_sample, MARGIN = 2, FUN = anyNA) == FALSE
-  no_missing_vars <- names(included_sample)[index_no_missing]
+  index_no_missing <- apply(subset_data, MARGIN = 2, FUN = anyNA) == FALSE
+  no_missing_vars <- names(subset_data)[index_no_missing]
   
   out$match <- matchit(formula = matching_formula,
                        data    = subset_data[no_missing_vars], 
