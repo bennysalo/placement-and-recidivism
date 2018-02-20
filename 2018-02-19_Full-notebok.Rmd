@@ -23,20 +23,24 @@ FinPrisonMales <-
 ```
 
 
-Create new variables. MatchIt needs dichotomous response variables. 
+Create new variables. The R package `MatchIt` needs dichotomous response variables. 
 
 ```{r}
 FinPrisonMales <-
   FinPrisonMales %>%
-  mutate(open01 = ifelse(openPrison == "open_prison", 1, 0),
-         cond01 = ifelse(conditionalReleaseGranted == "cr_granted", 1, 0),
-         superv01 = ifelse(supervisedParole == "supervised parole", 1, 0))
-         # oc_violent = ifelse(o_assault == 0 & o_homicide == 0, 0, 1),
-         # newOc_violent = ifelse(newO_assault == 0 & newO_homicide == 0, 0, 1))
+  mutate(open01   = ifelse(openPrison == "open_prison", 1, 0),
+         cond01   = ifelse(conditionalReleaseGranted == "cr_granted", 1, 0))
 ```
 
 
-Exclude individuals who comitted a crime during the sentence. This is the simplest way to handle the issue that we do not know when the crime was committed or when it was uncovered.
+Exclude individuals who comitted a crime during the sentence. This is the simplest way to handle the issue that we do not know when the crime was committed, when it was uncovered, or how it affected placement decisions.
+
+
+These are 93 individuals
+```{r}
+table(FinPrisonMales$crimeDuringSentence)
+```
+
 
 ```{r}
 included_sample <-
@@ -48,6 +52,12 @@ rm(FinPrisonMales)
 
 
 Also, exclude individuals with suspended conditional release. This is the easiest way to handle the confounding that individuals granted conditional release from open prison may have been placed in closed prison if the conditional release was revoked.
+
+This is the distribution of individuals over status of placement at release and conditional release:
+
+```{r}
+table(included_sample$openPrison, included_sample$conditionalReleaseOutcome)
+```
 
 
 ```{r}
