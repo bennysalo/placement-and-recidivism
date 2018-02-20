@@ -23,16 +23,6 @@ FinPrisonMales <-
 ```
 
 
-Create new variables. The R package `MatchIt` needs dichotomous response variables. 
-
-```{r}
-FinPrisonMales <-
-  FinPrisonMales %>%
-  mutate(open01   = ifelse(openPrison == "open_prison", 1, 0),
-         cond01   = ifelse(conditionalReleaseGranted == "cr_granted", 1, 0))
-```
-
-
 Exclude individuals who comitted a crime during the sentence. This is the simplest way to handle the issue that we do not know when the crime was committed, when it was uncovered, or how it affected placement decisions.
 
 
@@ -83,39 +73,17 @@ The smallest groups (individuals placed in closed prison and not granted conditi
 - the effect of conditional release among those placed in open prison at the end of their sentence.
 
 
-
-# Define sets of predictors
-
-```{r}
-offence_variables <- 
-  str_subset(names(included_sample), "^o_")
-
-static_preds <- 
-   c("ageFirstSentence_mr", "ageFirst_missing", "ageAtRelease", 
-     "ps_escapeHistory", "ps_prisonTerms_mr", "ps_comServiceTerms_mr", 
-     "ps_remandTerms_mr", "ps_defaultTerms_mr", "ps_info_missing", 
-     offence_variables)
+# Create subgroups
 
 
-rita_factors <- 
-   c("economy_problems", "alcohol_problems", "resistance_change", 
-     "drug_related_probl", "aggressiveness", "employment_probl") 
-
-
-all_predictors <- c(static_preds, rita_factors)
-
-```
-
-
-
-Create subgroups
-
+Key for abbreviations:
 
 op = Open Placement
 cr = Conditional Release
 ps = Parole Supervised
 
 0 = no, 1 = yes
+
 
 ```{r}
 # Subgroups for examining effect of open prison
@@ -140,16 +108,36 @@ subset_op1_ps1 <-
 ```
 
 
-Key for abbreviations:
 
-op = Open Placement
-cr = Conditional Release
-ps = Parole Supervised
+# Matching
 
-0 = no, 1 = yes
+## Define sets of predictors
+
+The vector `all_predictors` will be used to write the formula for propensity scores.
+```{r}
+offence_variables <- 
+  str_subset(names(included_sample), "^o_")
+
+static_preds <- 
+   c("ageFirstSentence_mr", "ageFirst_missing", "ageAtRelease", 
+     "ps_escapeHistory", "ps_prisonTerms_mr", "ps_comServiceTerms_mr", 
+     "ps_remandTerms_mr", "ps_defaultTerms_mr", "ps_info_missing", 
+     offence_variables)
+
+
+rita_factors <- 
+   c("economy_problems", "alcohol_problems", "resistance_change", 
+     "drug_related_probl", "aggressiveness", "employment_probl") 
+
+
+all_predictors <- c(static_preds, rita_factors)
+
+```
 
 
 
+
+## Matching function
 
 Write a function for matching. This function takes the following arguments:
 + 'subset_data' - A data frame. The subset previously generated that only includes individuals who have gotten the same treatment except for the effect variable. 
@@ -168,19 +156,20 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
   # Write the formulas that will be needed
   # Matching formulas. Here the other exactly matched variables are not included as predictors.
    
-  write_formula <- function(outcome = dicotom_var) {
-    as.formula(paste(outcome, " ~ ", paste(balancing_variables, collapse = " + "))) 
+   
+  write_formula <- function(dicotom_outcome) {
+    as.formula(paste(dicotom_outcome, " ~ ", paste(balancing_variables, collapse = " + "))) 
   } 
 
-   
   # Write corresponding formula that will be used with 'matchit'
+  # matchit needs dichotomous outcomes - create those here 
   # Different formulas depending on what the effect_variable is
   if        (effect_variable == "openPrison") {
-    dichotom_var <- "open01"
-    matching_formula <- write_formula("open01")
+    subset_data$open01 <- as.numeric(subset_data$openPrison - 1)
+    matching_formula <- write_formula("openPrison")
     
   } else if (effect_variable == "conditionalReleaseGranted") {
-    dichotom_var <- "cond01"
+    subset_data$cond01 <- as.numeric(subset_data$conditionalReleaseGranted - 1)
     matching_formula <- write_formula("cond01")
 
   } else {
@@ -195,8 +184,8 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
    # All included predictors are complete data. Matchit will not run if a
       # used predictor is excluded.
    
-   index_no_missing <- apply(included_sample, MARGIN = 2, FUN = anyNA) == FALSE
-   no_missing_vars <- names(included_sample)[index_no_missing]
+  index_no_missing <- apply(included_sample, MARGIN = 2, FUN = anyNA) == FALSE
+  no_missing_vars <- names(included_sample)[index_no_missing]
   
   out$match <- matchit(formula = matching_formula,
                        data    = subset_data[no_missing_vars], 
