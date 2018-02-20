@@ -330,13 +330,67 @@ get_chi_stats(op_cr0_ps0$glm_interaction)
 anova(op_cr0_ps0$glm_ancova, op_cr0_ps0$glm_interaction, test = "Chisq")
 
 ```
+Results for the effect of placement in open prison
+- in combination with no conditional release
+- among individuals SUPERVISED during parole
+
+No main effect. Adding interaction term is not a statistically significant improvement.
+
+```{r}
+summary      (op_cr0_ps1$glm_ancova)
+get_chi_stats(op_cr0_ps1$glm_ancova)
+
+summary      (op_cr0_ps1$glm_interaction)
+get_chi_stats(op_cr0_ps1$glm_interaction)
+
+anova(op_cr0_ps1$glm_ancova, op_cr0_ps1$glm_interaction, test = "Chisq")
+
+```
+
+
+Results for the effect of conditional release
+- in combination with placement in open prison
+- among individuals NOT SUPERVISED during parole
+
+No main effect. Adding interaction term is not a statistically significant improvement.
+
+```{r}
+summary      (cr_op1_ps0$glm_ancova)
+get_chi_stats(cr_op1_ps0$glm_ancova)
+
+summary      (cr_op1_ps0$glm_interaction)
+get_chi_stats(cr_op1_ps0$glm_interaction)
+
+anova(cr_op1_ps0$glm_ancova, cr_op1_ps0$glm_interaction, test = "Chisq")
+
+```
+Results for the effect of conditional release
+- in combination with placement in open prison
+- among individuals SUPERVISED during parole
+
+No main effect. Adding interaction term is not a statistically significant improvement.
+
+```{r}
+summary      (cr_op1_ps1$glm_ancova)
+get_chi_stats(cr_op1_ps1$glm_ancova)
+
+summary      (cr_op1_ps1$glm_interaction)
+get_chi_stats(cr_op1_ps1$glm_interaction)
+
+anova(cr_op1_ps1$glm_ancova, cr_op1_ps1$glm_interaction, test = "Chisq")
+
+```
+
+
+
 # Plots
 
 Write a function to plot interesting results
 
 ```{r}
 make_graph <- function (results_list, ind_variable, 
-                        in_comb_with = NA) {
+                        my_x_lab = NULL, y_labels = FALSE,
+                        facet_labels = FALSE, legend = FALSE) {
 
 
 
@@ -361,7 +415,7 @@ if          (ind_variable == "openPrison") {
 tick_breaks <-  c(0, 0.25, 0.5, 0.75, 1)
 tick_labels <-  c("0", "", ".5", "", "1" )   
 
-subtitle    <- paste("In combination with" , in_comb_with)
+# subtitle    <- paste("In combination with" , in_comb_with)
                           
 plot_data <- data.frame(
   propensity_score    = results_list$data[[propens_score]],
@@ -372,13 +426,42 @@ plot_data <- data.frame(
 ) 
 
 
+if (y_labels == TRUE) {
+  my_y_lab_line   <- "Est. prob. of recidivism"
+  my_y_lab_jitter <- "Match category" 
+} else {
+  my_y_lab_line   <- NULL
+  my_y_lab_jitter <- NULL 
+}
+
+if (y_labels == TRUE) {
+  my_y_lab_line   <- "Est. prob. of recidivism"
+  my_y_lab_jitter <- "Match category" 
+} else {
+  my_y_lab_line   <- NULL
+  my_y_lab_jitter <- NULL 
+}
+
+
+if (facet_labels == TRUE) {
+  my_strip_text <- element_text()
+} else {
+  my_strip_text <- element_blank()
+}
+
+if (legend == TRUE) {
+  legend_pos <- theme(legend.position = c(0.8, 0.8))
+} else {
+  legend_pos <- theme(legend.position = "none")
+}
+
+
+
 # A better alternative to the line plot might be to just draw the line generated from regression
                           # coefficients and limit to the max and min propensities
                           
 
 # For the upper line plot only include matched individuals 
-
-
 
 # Create the line plot
 line_plot <- 
@@ -388,16 +471,16 @@ line_plot <-
              y = est_prob_recidivism, 
              col = ind_variable)) + 
   geom_line() +
-  ggtitle(title, subtitle = subtitle) +
+  # ggtitle(title, subtitle = subtitle) +
   xlab(NULL) + 
-  ylab("Est. probability of recidivism") +
-  scale_x_continuous(limits = c(0,1), breaks = tick_breaks, labels = tick_labels) +
+  ylab(my_y_lab_line) +
+  scale_x_continuous(limits = c(0,1), breaks = tick_breaks, labels = NULL) +
   scale_y_continuous(limits = c(0,1), breaks = tick_breaks, labels = tick_labels) +
   scale_color_discrete(name = legend_name,
                        breaks = legend_breaks,
                        labels = legend_labels) +
   theme_tufte(base_family = "sans") +
-  theme(legend.position = c(0.9, 0.9))
+  legend_pos
   
   
 
@@ -406,13 +489,13 @@ jitter_plot <- plot_data %>%
   ggplot(aes(x = propensity_score,
              y = ind_variable,
              col = ind_variable)) +
-  geom_jitter() +
-  xlab("Propensity score") +
-  ylab("Matching category") +
+  geom_jitter(alpha = 0.3) +
+  xlab(my_x_lab) +
+  ylab(my_y_lab_jitter) +
   scale_x_continuous(limits = c(0,1), breaks = tick_breaks, labels = tick_labels) +
   scale_y_discrete(breaks = NULL) +
   theme_tufte(base_family = "sans") +
-  theme(legend.position = "none") + 
+  theme(legend.position = "none", strip.text.y = my_strip_text) + 
   facet_grid(matched_f ~ .) 
   
   
@@ -436,18 +519,33 @@ Make the actual grafs
 
 ```{r}
 
-g_o1 <-
-make_graph(op_cr0_ps0, "openPrison",
-           "no conditional release and no supervision of parole")
-g_o2 <- 
-make_graph(op_cr0_ps1, "openPrison", 
-           "no conditional release but with supervision of parole")
+g_open_no_superv<-
+make_graph(op_cr0_ps0, "openPrison", 
+           y_labels = TRUE,
+           legend = TRUE)
 
-g_c1 <-
+g_open_superv <- 
+make_graph(op_cr0_ps1, "openPrison", 
+           my_x_lab = "Propensity for open prison",
+           y_labels = TRUE)
+
+g_cond_no_superv <-
 make_graph(cr_op1_ps0, "conditionalReleaseGranted",
-           "open prison and no supervision of parole")
-g_c2 <- 
+           facet_labels = TRUE,
+           legend = TRUE)
+
+g_cond_superv <- 
 make_graph(cr_op1_ps1, "conditionalReleaseGranted",
-           "open prison and supervision of parole")
+           facet_labels = TRUE,
+           my_x_lab = "Propensity for CR")
 
 ```
+
+
+Combine grobs
+```{r fig.height=8.69, fig.width=6.27}
+grid.arrange(grobs = list(g_open_no_superv, g_cond_no_superv, 
+                          g_open_superv,    g_cond_superv), 
+             nrow = 2, ncol = 2)
+```
+
