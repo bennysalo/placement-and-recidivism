@@ -345,14 +345,14 @@ if          (ind_variable == "openPrison") {
   legend_name   =  "Placement"
   legend_breaks =  c("open_prison", "closed_prison")
   legend_labels =  c("Open Prison", "Closed Prison")
-  propens_score = "distance_logit"
+  propens_score = "distance_prob"
 
 } else if (ind_variable == "conditionalReleaseGranted") {
   title         =  "Effect of conditional release (CR)"
   legend_name   =  "CR Status"
   legend_breaks =  c("cr_granted", "cr_not_granted")
   legend_labels =  c("Successful CR", "No CR")
-  propens_score = "distance_logit"
+  propens_score = "distance_prob"
 
 } else {
     warning("Could not find effect")
