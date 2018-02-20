@@ -1,7 +1,9 @@
 ---
-title: "Combined notebooks. Analyses for 'The practices of open prison and conditional release and their relation to recidivism rates'"
-output: html_notebook
+title: "Analyses for 'The practices of open prison and conditional release and their relation to recidivism rates'"
+output: rmarkdown::github_document
 ---
+
+# Setup
 
 Load needed packages
 
@@ -13,6 +15,8 @@ library(ggthemes)
 library(gridExtra)
 sessionInfo()
 ```
+
+# Data - Load and subset
 
 Import dataset 'FinPrisonMales'. This version of the data includes only males. Data is not publicly available. Check https://osf.io/e9dzf/ for a description of the data, including inclusion and exclusion criteria and summary statistics. (This description will be uploaded at a later date - it is not yet available as of 2018-02-19.)
 
@@ -209,7 +213,7 @@ my_matching <- function(subset_data, effect_variable, balancing_variables = all_
 ```
 
 
-# Do the matching for each subset.
+## Do the matching for each subset.
 
 ```{r}
 op_cr0_ps0 <-  my_matching(subset_cr0_ps0, "openPrison")
@@ -220,7 +224,7 @@ cr_op1_ps1 <-  my_matching(subset_op1_ps1, "conditionalReleaseGranted")
   
 ```
 
-Checks
+## Checks
 ```{r}
 do_checks_I_want <- function(my_matching_output) {
   
