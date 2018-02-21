@@ -313,10 +313,10 @@ add_glm_tests <- function(results_list) {
 Function to test all glm models against each other
 ```{r}
 compare_models <- function(results_list) {
-  anova(results_list$glm_ancova, 
-        results_list$glm_interaction,
-        results_list$glm_int_non_lin,
-        test = "Chisq")
+    anova(results_list$glm_ancova, 
+          results_list$glm_interaction, 
+          results_list$glm_int_non_lin, test = "Chisq")
+
 }
 ```
 
@@ -357,11 +357,14 @@ Results for the effect of placement in open prison
 - among individuals NOT SUPERVISED during parole
 
 No main effect. Adding interaction term is not a statistically significant improvement.
+Adding both an interaction and a nonlinear effect is an improvement
 
 ```{r}
 compare_models(op_cr0_ps0)
-# anova(op_cr0_ps0$glm_ancova, op_cr0_ps0$glm_int_non_lin, test = "Chisq")
-# summary(op_cr0_ps0$glm_int_non_lin)
+anova(op_cr0_ps0$glm_ancova, op_cr0_ps0$glm_non_linear, test = "Chisq")
+anova(op_cr0_ps0$glm_ancova, op_cr0_ps0$glm_int_non_lin, test = "Chisq")
+summary(op_cr0_ps0$glm_ancova)
+summary(op_cr0_ps0$glm_int_non_lin)
 # summary      (op_cr0_ps0$glm_int_non_lin)
 # get_chi_stats(op_cr0_ps0$glm_ancova)
 # 
@@ -383,6 +386,8 @@ No main effect. Adding interaction term is not a statistically significant impro
 
 ```{r}
 compare_models(op_cr0_ps1)
+anova(op_cr0_ps1$glm_ancova, op_cr0_ps1$glm_non_linear, test = "Chisq")
+anova(op_cr0_ps1$glm_ancova, op_cr0_ps1$glm_int_non_lin, test = "Chisq")
 # summary      (op_cr0_ps1$glm_ancova)
 # get_chi_stats(op_cr0_ps1$glm_ancova)
 # 
@@ -400,13 +405,17 @@ Results for the effect of conditional release
 - among individuals NOT SUPERVISED during parole
 
 No main effect. Adding interaction term is not a statistically significant improvement.
+Nonlinear-effect is statistically significant.
 
 ```{r}
 compare_models(cr_op1_ps0)
+anova(cr_op1_ps0$glm_ancova, cr_op1_ps0$glm_non_linear, test = "Chisq")
+anova(cr_op1_ps0$glm_ancova, cr_op1_ps0$glm_int_non_lin, test = "Chisq")
+anova(cr_op1_ps0$glm_non_linear, cr_op1_ps0$glm_int_non_lin, test = "Chisq")
 # summary      (cr_op1_ps0$glm_ancova)
 # get_chi_stats(cr_op1_ps0$glm_ancova)
 # 
-# summary      (cr_op1_ps0$glm_interaction)
+summary      (cr_op1_ps0$glm_non_linear)
 # get_chi_stats(cr_op1_ps0$glm_interaction)
 # 
 # anova(cr_op1_ps0$glm_ancova, cr_op1_ps0$glm_interaction, test = "Chisq")
@@ -422,8 +431,10 @@ No main effect. Adding interaction term is not a statistically significant impro
 
 ```{r}
 compare_models(cr_op1_ps1)
-anova(cr_op1_ps0$glm_ancova, cr_op1_ps0$glm_non_linear, test = "Chisq")
-# summary      (cr_op1_ps1$glm_ancova)
+anova(cr_op1_ps1$glm_ancova, cr_op1_ps1$glm_non_linear, test = "Chisq")
+anova(cr_op1_ps1$glm_ancova, cr_op1_ps1$glm_int_non_lin, test = "Chisq")
+anova(cr_op1_ps1$glm_non_linear, cr_op1_ps1$glm_int_non_lin, test = "Chisq")
+summary      (cr_op1_ps1$glm_ancova)
 # get_chi_stats(cr_op1_ps1$glm_ancova)
 # 
 # summary      (cr_op1_ps1$glm_interaction)
@@ -471,8 +482,9 @@ tick_labels <-  c("0", "", ".5", "", "1" )
                           
 plot_data <- data.frame(
   propensity_score    = results_list$data[[propens_score]],
-  est_prob_recidivism = predict(results_list$glm_interaction, 
-                                type = "response", newdata = results_list$data),
+  est_prob_recidivism = predict(results_list$glm_int_non_lin, 
+                                type = "response",
+                                newdata = results_list$data),
   ind_variable        = results_list$data[[ind_variable]],
   matched_f           = results_list$data[["matched_f"]]
 ) 
