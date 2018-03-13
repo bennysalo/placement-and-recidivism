@@ -1,0 +1,653 @@
+---
+title: "Analyses for 'The practices of open prison and conditional release and their relation to recidivism rates'"
+output:
+  github_document:
+    toc: true
+
+---
+
+Here we try another approach that should be less prone to overfitting. We create to subclasses of individuals of high versus low propensity scores. Within these subclasses we match using nearest neighbor matching. This has two advantages over nearest neighbor matching in a single sample:
+
+1. We can investigate if the effect is different over different levels of propensity while simultaneously checking that balance of covariates holds on these (two) levels.
+2. We are able to use more observations by using different ratios of matching in the subclasses. In the low propensity group (where there are naturally more controls) we use 1 treated to 2 controls. In the high propensity group we use 2 treated to 1 control.
+
+This is how we could do this:
+To create approximately equal subclass sizes (treated + control) we start by splitting the observations into subclasses at the 33rd percentile on propensity scores for the smaller group - in this case the treated individuals. Matching the lower third of treated individuals with two controls per treated individual will give the same total size as matching the upper two thirds with one control per two treated.
+
+A simpler method is to split at the logit propensity score of 0. Controls should theoretically be more common under this cutoff and treated more common above.
+
+
+# Setup
+
+Load needed packages
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(MatchIt)
+library(ggthemes)
+library(gridExtra)
+library(furniture)
+sessionInfo()
+```
+
+# Data 
+
+## Load data
+Import data set 'FinPrisonMales'. This version of the data includes only males. Data is not publicly available. Check https://osf.io/e9dzf/ for a description of the data, including inclusion and exclusion criteria and summary statistics. (This description will be uploaded at a later date - it is not yet available as of 2018-03-07.)
+
+```{r}
+rm(list = ls())
+FinPrisonMales <- 
+  readRDS("C:/Users/benny_000/Dropbox/AAAKTUELLT/FinPrisonData/FinPrisonMales.rds")
+```
+
+## Variables
+
+Exclude irrelevant variables with missing values. Matchit does not allow missing values and they will not be needed anyway.
+   
+  
+```{r}
+index_no_missing <- apply(FinPrisonMales, MARGIN = 2, FUN = anyNA) == FALSE
+no_missing_vars <- names(FinPrisonMales)[index_no_missing]
+
+FinPrisonMales <- FinPrisonMales[index_no_missing]
+
+```
+
+Add variables that  `matchit`  needs dichotomous outcomes for propensity scores:
+```{r}
+FinPrisonMales <-
+  FinPrisonMales %>% 
+  # Numeric versions of the factors have integers 1 and 2.
+  # Subtracting 1 puts them on a logical 0, 1 scale.
+  mutate(open01 = as.numeric(openPrison) - 1,
+         cond01 = as.numeric(conditionalReleaseGranted) - 1,
+  # We also want reversed codings with closed and no CR coded as 1
+  # We achieve this by subtracting 2. (Results in -1, 0)
+  # and taking the absolute value (results in 1, 0)
+         open10 = abs(as.numeric(openPrison) - 2),
+         cond10 = abs(as.numeric(conditionalReleaseGranted) - 2))
+ 
+```
+
+For the purpose of these analyses code "reoffenceThisTerm" as 0 = no reoffence
+and 1 reoffence
+
+```{r}
+FinPrisonMales <- FinPrisonMales %>% 
+  mutate(reoffenceThisTerm = 
+           ifelse(reoffenceThisTerm == "new_prison_sentence",
+                  1, 0))
+```
+
+
+
+## Exclusion and inclusion
+
+Exclude individuals who committed a crime during the sentence. This is the simplest way to handle the issue that we do not know when the crime was committed, when it was uncovered, or how it affected placement decisions.
+
+
+These are 93 individuals
+```{r}
+table(FinPrisonMales$crimeDuringSentence)
+```
+
+
+```{r}
+included_sample <-
+  FinPrisonMales %>% 
+  filter(crimeDuringSentence == "No records of crime")
+
+rm(FinPrisonMales)
+```
+
+
+Also, exclude individuals with suspended conditional release. This is the easiest way to handle the confounding that individuals granted conditional release from open prison may have been placed in closed prison if the conditional release was revoked.
+
+This is the distribution of individuals over status of placement at release and conditional release:
+
+```{r}
+table(included_sample$openPrison, included_sample$conditionalReleaseOutcome)
+```
+
+
+```{r}
+included_sample <-
+  included_sample %>% 
+  filter(conditionalReleaseOutcome != "Cancelled conditional release")
+
+```
+
+This leaves us with the following breakdown of individuals.
+```{r}
+table(included_sample$openPrison, included_sample$conditionalReleaseOutcome)
+```
+
+Further we separate those with their parole supervised and those without supervision.
+
+```{r}
+table(included_sample$supervisedParole, included_sample$conditionalReleaseOutcome, included_sample$openPrison)
+```
+
+The smallest groups (individuals placed in closed prison and not granted conditional release) will not be examined further. That leaves us with the possibility to examine 
+- the effect of placement among those not granted conditional release
+- the effect of conditional release among those placed in open prison at the end of their sentence.
+
+
+## Create subgroups
+
+
+Key for abbreviations:
+
+op = Open Placement
+cr = Conditional Release
+ps = Parole Supervised
+
+0 = no, 1 = yes
+
+
+```{r}
+# Subgroups for examining effect of open prison
+op_cr0_ps0<-
+  included_sample %>% 
+  filter(conditionalReleaseGranted == "cr_not_granted" & 
+           supervisedParole == "no supervision")
+
+op_cr0_ps1 <-
+  included_sample %>% 
+  filter(conditionalReleaseGranted == "cr_not_granted" & 
+           supervisedParole == "supervised parole")
+
+# Subgroups for examining effect of conditional relase
+cr_op1_ps0  <-
+  included_sample %>% 
+  filter(openPrison == "open_prison" & supervisedParole == "no supervision")
+
+cr_op1_ps1 <- 
+  included_sample %>% 
+  filter(openPrison == "open_prison" & supervisedParole == "supervised parole")
+
+```
+
+
+# Calculate propensity scores and add to data
+
+## Define sets of predictors
+
+The vector `all_predictors` will be used to write the formula for propensity scores.
+```{r}
+offence_variables <- 
+  str_subset(names(included_sample), "^o_")
+
+static_preds <- 
+   c("ageFirstSentence_mr", "ageFirst_missing", "ageAtRelease", 
+     "ps_escapeHistory", "ps_prisonTerms_mr", "ps_comServiceTerms_mr", 
+     "ps_remandTerms_mr", "ps_defaultTerms_mr", "ps_info_missing", 
+     offence_variables)
+
+
+rita_factors <- 
+   c("economy_problems", "alcohol_problems", "resistance_change", 
+     "drug_related_probl", "aggressiveness", "employment_probl") 
+
+
+all_predictors <- c(static_preds, rita_factors)
+
+```
+
+## Functions for prepensity score matching
+Returns a list with the data, and the two formulas.
+
+```{r}
+append_formulas <- function(subset_data, effect_variable, 
+                            balancing_variables = all_predictors) {
+  
+  out <- list(data = subset_data,
+              effect_variable = effect_variable,
+              matching_formula = NA,
+              matching_formula_reversed = NA)
+  
+  # A function to write the formula based on given outcome
+  write_formula <- function(outcome) {
+    as.formula(paste(outcome, " ~ ", 
+                     paste(balancing_variables, collapse = " + "))) 
+  } 
+
+  # Write the formulas
+  # Different formulas depending on the effect_variable
+  # Matchit needs dichotomous outcomes so we use those
+  if        (effect_variable == "openPrison") {
+    out$matching_formula          <- write_formula("open01")
+    out$matching_formula_reversed <- write_formula("open10")
+    
+  } else if (effect_variable == "conditionalReleaseGranted") {
+    out$matching_formula          <- write_formula("cond01")
+    out$matching_formula_reversed <- write_formula("cond10")
+
+  } else {
+    warning("Could not determine effect")
+  }
+  
+  return(out)
+  
+}
+```
+
+```{r}
+op_cr0_ps0 <- append_formulas(op_cr0_ps0, "openPrison")
+```
+
+
+
+```{r}
+append_propensity_scores <- function(results_list) {
+  
+  out <- results_list
+  
+  fit <- glm(results_list$matching_formula, 
+             data = results_list$data, family = binomial)
+  
+  out$data$propensity_score <- predict(fit)
+  
+  return(out)
+}
+  
+```
+
+
+```{r}
+op_cr0_ps0 <- append_propensity_scores(op_cr0_ps0)
+```
+
+
+
+# Create subclasses
+
+Simplify the problem to splitting at propensity score = 0. That is, there should theoretically be a higher number of controls under log-odds 0 and a higher number of treated above log-odds 0.
+
+Moving functions for calculating ratios to a separate script. Not used for now.
+
+
+
+# Matching
+
+Create a function that takes the list of results so far and appends:
+* two lists of class `matchitobject`
+** One for matching with 1 treated and 2 control
+** One for the opposite (2-1)
+* the data is appended with two columns
+** `subclass` with the levels "2_treated_1_control" and "1_treated_2_controls"
+** `matched`indicating if the observation is matched (1) or not (0) according to the plan (2 to 1 or 1 to 2)
+(as a result of subsetting within the function the data is also ordered according to subclass)
+
+```{r}
+
+append_matching <- function(results_list) {
+  # Make a copy of the results_list that will be returned 
+  out <- results_list
+  
+  # Define the subsets we are going to use
+    # The subset with more controls (1 treated to 2 controls)
+    # Propensity score < 0. Probability of treatment under 50%
+  data_1t_2c <- results_list$data %>% 
+    filter(propensity_score <= 0)
+    # The subset with more controls (2 treated to 1 atchcontrol)
+  data_2t_1c <- results_list$data %>% 
+    filter(propensity_score > 0)
+  
+  # Perform matching
+  out$match_1t_2c <- matchit(results_list$matching_formula, 
+                             data = data_1t_2c,
+                             caliper = 0.25, ratio = 2)
+  
+  out$match_2t_1c <- matchit(results_list$matching_formula_reversed,  #!
+                             data = data_2t_1c,                       #!
+                             caliper = 0.25, ratio = 2)
+
+
+  # Extract for each matching the row numbers that have been matched
+    # Write a function to extract the row indeces for 
+    # fully matched observations
+   
+   extract_matched_rows <- function(match_matrix) {
+     included <- 
+     data_frame(case    = as.numeric(rownames(match_matrix)),
+                match_1 = as.numeric(match_matrix[, 1]),
+                match_2 = as.numeric(match_matrix[, 2]),
+                exclude = apply(match_matrix, 1, anyNA)) %>% 
+      filter(exclude == FALSE)
+     
+     all_row_numbers <- c(included$case, 
+                          included$match_1, 
+                          included$match_2)
+     return(all_row_numbers)
+   }
+  
+    # Get indices using the fucntion above
+   index_1_2 <- extract_matched_rows(out$match_1t_2c$match.matrix)
+   index_2_1 <- extract_matched_rows(out$match_2t_1c$match.matrix)
+   
+    # Create new columns in each subset
+   data_1t_2c$subclass <- "t2_c1"
+      # Set default value to "not_matched"" and 
+      #  replace with "matched" for matched
+   data_1t_2c$matched  <- "not_matched"
+   data_1t_2c$matched[index_1_2] <- "matched"
+  
+   data_2t_1c$subclass <- "t1_c2"
+   data_2t_1c$matched  <- "not_matched"
+   data_2t_1c$matched[index_2_1] <- "matched"
+   
+    # Combine the two subsets and replace the data element of the results_list
+   out$data <- bind_rows(data_1t_2c, data_2t_1c)
+   
+    # Make new variables factors 
+   out$data$subclass <- as.factor(out$data$subclass)
+   out$data$matched  <- as.factor(out$data$matched)
+   
+   return(out)
+}
+```
+
+```{r}
+op_cr0_ps0 <- append_matching(op_cr0_ps0)
+```
+
+# Balance tables
+
+- Create a vector of categorical variables to check
+- subset data
+- map_int over the vector
+  - function is extracting the second element in table()
+- combine vectors via data_frame
+
+
+
+Function for creating subsets
+(this could be replaced by a function that creates subsetting rules)
+```{r}
+append_subsets <- function(results_list) {
+  # Make all subsets
+  # Iterate over levels of subclass and effect_variable
+  ev <- results_list$data[[results_list$effect_variable]]
+  lev_ev <- levels(ev)
+  lev_sc <- levels(results_list$data[["subclass"]])
+  
+  # Make two vectors of levels that when used in parallel creates all ombinations
+  lev_ev <- rep(lev_ev, 2)
+  lev_sc <- rep(lev_sc, each = 2)
+  
+  # Create a list of subsets iterating over the two vecors above
+  results_list$list_of_subsets <- map2(
+    .x = lev_sc,
+    .y = lev_ev,
+    .f = ~ filter(results_list$data, subclass == .x & ev == .y)
+    )
+  
+  subset_names <- map2_chr(.x = lev_sc,
+                           .y = lev_ev,
+                           .f = ~ paste(.x, .y, sep = "_"))
+  
+  names(results_list$list_of_subsets) <- subset_names
+  
+  return(results_list)
+}
+
+```
+
+```{r}
+op_cr0_ps0 <- append_subsets(op_cr0_ps0)
+```
+
+
+```{r}
+  # Make this a seperate reusable function: rename_conditions
+
+rename_conditions <- function(x) {
+  colnames(x) <- str_replace(colnames(x) , pattern = "open_prison", "trt")
+  colnames(x) <- str_replace(colnames(x) , pattern = "closed_prison", "ctrl")
+  colnames(x) <- str_replace(colnames(x) , pattern = "cr_granted", "trt")
+  colnames(x) <- str_replace(colnames(x) , pattern = "cr_not_granted", "ctrl")
+  return(x)
+}
+
+```
+
+
+Rewrite to only use the subsets element of the results_list
+```{r}
+create_count_tbl <- function(results_list, var_vector) {
+  # Exclude unmatched observations
+  checked_tbl<- results_list$data %>%
+    filter(matched == "matched") %>% 
+  # And select the variables to check  
+    select(var_vector)
+  
+  # Check that all variables are coded 0 and 1
+    # Condition to meet
+
+  all_0_1 <- all(map_lgl(checked_tbl, 
+                         .f = ~ all(.x %in% c(0,1))))
+  
+    # Warn if this is not true
+  if (!(all_0_1)) {
+    warning("Not all variables are coded 0 and 1, counts are counted as sums")
+  }
+  
+  # Caculatete values
+    # Total n
+  total_n  <- map_df(results_list$list_of_subsets, nrow)
+  
+    # Counts in checked variables
+      # Subfuntion: make a vector of counts
+  
+  count_1s <- function(dframe) {
+    map_dbl(dframe[var_vector], sum)
+  }
+      # Use this function to make a vector of counts for each subset
+      # and then combine these vectors to a data_frame (map_df)
+  
+  var_is_1 <- map_df(results_list$list_of_subsets, count_1s)
+  
+  # Combine the total n with the rows indicating counts
+  counts <- bind_rows(total_n, var_is_1)
+  
+  # Create a vector of variable names including "total_n"
+  # Save as a tibble, easy to bind to other columns
+  variables <- tibble(variable = c("total_n", var_vector))
+  
+  # Combine the variables names with the other columns
+  out <- bind_cols(variables, counts)
+  # Rename the column names representing conditions to "trt" and "ctrl"
+  # Make this a seperate reusable function: rename_conditions
+  out <- rename_conditions(out)
+  return(out)
+}
+
+```
+
+```{r}
+create_odds_tbl <- function(count_tbl) {
+  
+  # Data_frame of the variables to check (exclude total)
+  checked_vars <- count_tbl %>% 
+    filter(variable != "total_n") 
+  
+  # Collect total n per subclass and treatement group
+  tot_ns <-
+    count_tbl %>% filter(variable == "total_n") %>%
+    select(2:5) %>% simplify()
+  
+  # Create a matrix with the total n repeated for all checked variables
+  tot_matr <- matrix(data = rep(tot_ns, each = nrow(checked_vars)),
+                     nrow = nrow(checked_vars), ncol = 4)
+  
+  # Collect tibble of count data per variable in subclasses and 
+  # treatment groups (exclude the r_name column): counts
+  counts <- checked_vars %>% select(-(variable))
+  
+  # Calculate non_counts = total n - counts
+  non_counts <- tot_matr - counts
+  
+  # Calculate odds
+  odds <- counts / non_counts
+  
+  out <- bind_cols(checked_vars["variable"], odds)
+  
+  colnames(out)[2:5] <- paste("odds", colnames(out)[2:5], sep = "_")
+  
+  return(out)
+}
+```
+
+```{r}
+# Function for odds ratio
+create_or_tbl <- function(odds_tbl) {
+  or_tbl <- transmute(odds_tbl,
+                      or_t1_c2 = odds_t1_c2_trt / odds_t1_c2_ctrl,
+                      or_t2_c1 = odds_t2_c1_trt / odds_t2_c1_ctrl)
+
+  or_tbl <- bind_cols(odds_tbl["variable"], or_tbl)
+  return(or_tbl)
+}
+
+```
+
+```{r}
+create_d_tbl <- function(or_tbl) {
+  calc_d_from_or <- function(or) log(or)*sqrt(3)/pi
+  d_tbl <- or_tbl %>% 
+  mutate(d_t1_c2 = calc_d_from_or(or_t1_c2),
+         d_t2_c1 = calc_d_from_or(or_t2_c1)) %>% 
+    select(variable, d_t1_c2, d_t2_c1)
+  
+  return(d_tbl)
+}
+```
+
+```{r}
+create_full_balance_tbl <- function(results_list, var_vector) {
+  count_tbl <- create_count_tbl(results_list, var_vector)
+  odds_tbl  <- create_odds_tbl(count_tbl)
+  or_tbl    <- create_or_tbl(odds_tbl)
+  d_tbl     <- create_d_tbl(or_tbl)
+  
+  left_join(count_tbl, odds_tbl, by = "variable") %>% 
+    left_join(or_tbl, by = "variable") %>% 
+    left_join(d_tbl, by = "variable")
+    
+}
+
+
+```
+
+
+
+
+```{r}
+cat_variables <- c("reoffenceThisTerm", "o_assault", 
+                   "o_homicide", "o_sexual", "o_narcotic", "o_whitecollar")
+
+full_balance_tbl <- create_full_balance_tbl(op_cr0_ps0, cat_variables) %>% 
+  select(1:3, 12, 4:5, 13) 
+```
+
+
+```{r}
+results_list <- op_cr0_ps0
+cont_variables <- c("followUpYears", "ageAtRelease", "ageFirstSentence_mr", "ps_prisonTerms_mr", rita_factors)
+var_vector   <- cont_variables
+
+```
+
+Function for getting  vector of means or SDs
+(Can be combined to one function with `appl_func` argument)
+(Find the dplyr function that does this)
+```{r}
+  get_means_v <- function(dframe, var_vector = var_vector) {
+    map_dbl(dframe[var_vector], mean)
+  }
+  
+  get_sds_v <- function(dframe, var_vector = var_vector) {
+    map_dbl(dframe[var_vector], sd)
+  }
+```
+  
+
+```{r}
+create_means_tbl <- function(results_list, var_vector) {
+
+  # Apply functions defined above to the list of subsets in the results_list
+  # Thus creating a tibble of means and a tibble of sds
+  means_tbl <-
+    map_df(results_list$list_of_subsets, .f = get_means_v, var_vector)
+  
+  sd_tbl    <-
+    map_df(results_list$list_of_subsets, .f = get_sds_v, var_vector)
+  
+  # Rename the columns in both tbls - shorten and unify
+  means_tbl <- rename_conditions(means_tbl)
+  sd_tbl    <- rename_conditions(sd_tbl)
+  
+  # Add prefixes 'mean' and 'sd' respectively
+  colnames(means_tbl) <- paste("mean", colnames(means_tbl), sep = "_")
+  colnames(sd_tbl)    <- paste("sd", colnames(sd_tbl), sep = "_")
+  
+  # Combine the two tibbles
+  means_sds_tbl <- bind_cols(means_tbl, sd_tbl) %>%
+    # order columns
+    select(1, 5, 2, 6, 3, 7, 4, 8)
+  
+  # Add variable column
+  out <- bind_cols(tibble(variable = var_vector), means_sds_tbl)
+  
+  return(out)
+  
+}
+
+```
+
+```{r}
+means_tbl <- create_means_tbl(op_cr0_ps0, cont_variables)
+```
+
+Calculate the means and SDs for full sample
+```{r}
+full_sample_sds <- tibble(
+  variable       = cont_variables,
+  full_sample_sd = get_sds_v(dframe = included_sample,
+                             var_vector = cont_variables)
+  )
+```
+
+
+
+```{r}
+create_d_tbl_cont <-
+  function(means_tbl, devide_by = full_sample_sds) {
+    out <- inner_join(means_tbl, devide_by, by = "variable") %>%
+      mutate(
+      d_t1_c2 = (mean_t1_c2_trt - mean_t1_c2_ctrl) / full_sample_sd,
+      d_t2_c1 = (mean_t2_c1_trt - mean_t2_c1_ctrl) / full_sample_sd
+      ) %>%
+      select(variable, d_t1_c2, d_t2_c1)
+  }
+```
+
+
+```{r}
+d_tbl_cont <- create_d_tbl_cont(means_tbl)
+d_tbl
+```
+
+# GLM-analyses
+
+# Plot 
+geom-pointrange and jitterplot
+
+Create one plot that is more descriptive for me. Y-axis is Log-odds. Plot Log-odds with confidence intervals for both treated and control.
+
+The one that I think we'll publish has log-odds-ratio as y-axis. Log-odds-ratio and confidence interval for both subclasses (Aboslute risk of reoffening not showed)
+
+
