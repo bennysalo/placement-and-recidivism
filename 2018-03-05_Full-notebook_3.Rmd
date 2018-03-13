@@ -354,14 +354,6 @@ append_matching <- function(results_list) {
 op_cr0_ps0 <- append_matching(op_cr0_ps0)
 ```
 
-# Balance tables
-
-- Create a vector of categorical variables to check
-- subset data
-- map_int over the vector
-  - function is extracting the second element in table()
-- combine vectors via data_frame
-
 
 
 Function for creating subsets
@@ -414,8 +406,10 @@ rename_conditions <- function(x) {
 
 ```
 
+# Balance tables
 
-Rewrite to only use the subsets element of the results_list
+Create a set of functions to check balance. Create different functions for categorical variables and for continous variables. Checks for balance in categorical variables is done via odds ratio that is later converted to d with formula found in Sánchez-Meca et al. (2003).
+Checks for balance in continous variables is done by dividing the differences in means with the standard deviation in the original sample.
 ```{r}
 create_count_tbl <- function(results_list, var_vector) {
   # Exclude unmatched observations
