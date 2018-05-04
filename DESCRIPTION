@@ -1,0 +1,9 @@
+Package: placementAndRecidivism
+Title: 
+Version: 0.0.0.9000
+Authors@R: person("Benny", "Salo", email = "first.last@example.com", role = c("aut", "cre"))
+Description: 
+Depends: R (>= 3.4.4)
+License: 
+Encoding: UTF-8
+LazyData: true
