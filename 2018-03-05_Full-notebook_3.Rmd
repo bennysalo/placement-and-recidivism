@@ -6,7 +6,7 @@ output:
 
 ---
 
-Here we try another approach that should be less prone to overfitting. We create to subclasses of individuals of high versus low propensity scores. Within these subclasses we match using nearest neighbor matching. This has two advantages over nearest neighbor matching in a single sample:
+Here we try another approach that should be less prone to overfitting. We create two subclasses of individuals of high versus low propensity scores. Within these subclasses we match using nearest neighbor matching. This has two advantages over nearest neighbor matching in a single sample:
 
 1. We can investigate if the effect is different over different levels of propensity while simultaneously checking that balance of covariates holds on these (two) levels.
 2. We are able to use more observations by using different ratios of matching in the subclasses. In the low propensity group (where there are naturally more controls) we use 1 treated to 2 controls. In the high propensity group we use 2 treated to 1 control.
