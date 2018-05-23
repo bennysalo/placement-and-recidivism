@@ -22,6 +22,37 @@ FinPrisonMales <- readRDS("not_public/FinPrisonMales.rds")
 Variables
 =========
 
+Name levels of the key variables clearly
+
+``` r
+levels(FinPrisonMales$openPrison)
+```
+
+    ## [1] "closed_prison" "open_prison"
+
+``` r
+levels(FinPrisonMales$openPrison) <- 
+  c("Closed prison", "Open prison")
+
+levels(FinPrisonMales$supervisedParole)
+```
+
+    ## [1] "no supervision"    "supervised parole"
+
+``` r
+levels(FinPrisonMales$supervisedParole) <-
+  c("No parole supervision", "Parole was supervised")
+
+levels(FinPrisonMales$conditionalReleaseGranted) 
+```
+
+    ## [1] "cr_not_granted" "cr_granted"
+
+``` r
+levels(FinPrisonMales$conditionalReleaseGranted) <- 
+  c("Not granted", "Granted")
+```
+
 Exclude irrelevant variables with missing values. Matchit does not allow missing values and they will not be needed anyway.
 
 ``` r
@@ -129,9 +160,71 @@ knitr::kable(
 
 The smallest groups (individuals placed in closed prison but granted conditional release, \[9 not supervised, 29 supervised\]) will not be examined further. That leaves us with the possibility to make the following comparisons:
 
-1.  the effect of placement among those not granted conditional release
-    -   when parole was not supervised (closed \[241\] vs. open prison \[148\])
-    -   when parole was supervised (closed \[427\] vs. open \[263\])
+1.  the effect of open prison among those not granted conditional release
+    1.  when parole was not supervised (closed \[241\] vs. open prison \[148\])
+    2.  when parole was supervised (closed \[427\] vs. open \[263\])
 2.  the effect of conditional release among those placed in open prison at the end of their sentence
-    -   when parole was not supervised (no release\[148\] vs. successful release \[50\])
-    -   when parole was supervised (no \[263\] vs. successful \[170\])
+    1.  when parole was not supervised (no release\[148\] vs. successful release \[50\])
+    2.  when parole was supervised (no \[263\] vs. successful \[170\])
+
+Create subsets
+==============
+
+We create a subset for each of the four (2 x 2) comparisons above.
+
+1.  Effect of open prison (when conditional release is not granted).
+    -   when parole is NOT supervised
+
+    ``` r
+    op_cr0_ps0<-
+      analyzed_data_plac %>% 
+      filter(conditionalReleaseOutcome == "No conditional release" & 
+           supervisedParole == "No parole supervision")
+    ```
+
+    -   when parole IS supervised
+
+    ``` r
+    op_cr0_ps1 <-
+      analyzed_data_plac %>% 
+      filter(conditionalReleaseOutcome == "No conditional release" & 
+           supervisedParole == "Parole was supervised")
+    ```
+
+2.  Effect of conditional release (for individuals placed in open prison)
+    -   when parole is NOT supervised
+
+    ``` r
+    cr_op1_ps0  <-
+      analyzed_data_plac %>% 
+      filter(openPrison == "Open prison" &
+           supervisedParole == "No parole supervision")
+    ```
+
+    -   when parole IS supervised
+
+    ``` r
+    cr_op1_ps1 <- 
+      analyzed_data_plac %>% 
+      filter(openPrison == "Open prison" & 
+           supervisedParole == "Parole was supervised")
+    ```
+
+Assertions. Make sure the subsets have the expected number of observations.
+
+``` r
+stopifnot(nrow(op_cr0_ps0) == (241 + 148))
+stopifnot(nrow(op_cr0_ps1) == (427 + 263))
+stopifnot(nrow(cr_op1_ps0) == (148 + 50))
+stopifnot(nrow(cr_op1_ps1) == (263 + 170))
+```
+
+Save subsets for later use.
+
+``` r
+devtools::wd()
+saveRDS(op_cr0_ps0, "not_public/op_cr0_ps0.rds")
+saveRDS(op_cr0_ps1, "not_public/op_cr0_ps1.rds")
+saveRDS(cr_op1_ps0, "not_public/cr_op1_ps0.rds")
+saveRDS(cr_op1_ps1, "not_public/cr_op1_ps1.rds")
+```
