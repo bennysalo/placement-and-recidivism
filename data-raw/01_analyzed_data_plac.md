@@ -16,8 +16,7 @@ Import data set 'FinPrisonMales'. This version of the data includes only males. 
 ``` r
 rm(list = ls())
 devtools::wd()
-FinPrisonMales <- 
-  readRDS("not_public/FinPrisonMales.rds")
+FinPrisonMales <- readRDS("not_public/FinPrisonMales.rds")
 ```
 
 Variables
@@ -82,71 +81,57 @@ rm(FinPrisonMales)
 This is the distribution of individuals over status of placement at release and conditional release:
 
 ``` r
-table(analyzed_data_plac$openPrison,
-      analyzed_data_plac$conditionalReleaseOutcome)
+knitr::kable(
+  table(analyzed_data_plac$openPrison,
+        analyzed_data_plac$conditionalReleaseOutcome)
+  )
 ```
 
-    ##                
-    ##                 No conditional release Successful conditional relase
-    ##   closed_prison                    668                            38
-    ##   open_prison                      411                           220
-    ##                
-    ##                 Cancelled conditional release
-    ##   closed_prison                            48
-    ##   open_prison                              18
+|               |  No conditional release|  Successful conditional relase|  Cancelled conditional release|
+|---------------|-----------------------:|------------------------------:|------------------------------:|
+| Closed prison |                     668|                             38|                             48|
+| Open prison   |                     411|                            220|                             18|
 
-Exclude individuals with suspended conditional release. This is the easiest way to handle the confounding that individuals granted conditional release from open prison may have been placed in closed prison if the conditional release was revoked.
+We exclude individuals with suspended conditional release. This is the easiest way to handle the confounding that individuals granted conditional release from open prison may have been placed in closed prison if the conditional release was revoked.
 
 ``` r
 analyzed_data_plac <-
   analyzed_data_plac %>% 
   filter(conditionalReleaseOutcome != "Cancelled conditional release")
+
+# Remove the excluded level for conditional release.
+levels(analyzed_data_plac$conditionalReleaseOutcome) <- 
+  c("No conditional release", "Successful conditional release", NA)
 ```
-
-This leaves us with the following breakdown of individuals.
-
-``` r
-table(analyzed_data_plac$openPrison,
-      analyzed_data_plac$conditionalReleaseOutcome)
-```
-
-    ##                
-    ##                 No conditional release Successful conditional relase
-    ##   closed_prison                    668                            38
-    ##   open_prison                      411                           220
-    ##                
-    ##                 Cancelled conditional release
-    ##   closed_prison                             0
-    ##   open_prison                               0
 
 Further we separate those with their parole supervised and those without supervision.
 
 ``` r
- table(analyzed_data_plac$supervisedParole,
-      analyzed_data_plac$conditionalReleaseOutcome,
-      analyzed_data_plac$openPrison) 
+knitr::kable(
+  table(
+    analyzed_data_plac$conditionalReleaseOutcome,
+    analyzed_data_plac$openPrison,
+    analyzed_data_plac$supervisedParole),
+    col.names = c("Conditional release", "Placement", "Supervision", "Freq")
+  )
 ```
 
-    ## , ,  = closed_prison
-    ## 
-    ##                    
-    ##                     No conditional release Successful conditional relase
-    ##   no supervision                       241                             9
-    ##   supervised parole                    427                            29
-    ##                    
-    ##                     Cancelled conditional release
-    ##   no supervision                                0
-    ##   supervised parole                             0
-    ## 
-    ## , ,  = open_prison
-    ## 
-    ##                    
-    ##                     No conditional release Successful conditional relase
-    ##   no supervision                       148                            50
-    ##   supervised parole                    263                           170
-    ##                    
-    ##                     Cancelled conditional release
-    ##   no supervision                                0
-    ##   supervised parole                             0
+| Conditional release            | Placement     | Supervision           |  Freq|
+|:-------------------------------|:--------------|:----------------------|-----:|
+| No conditional release         | Closed prison | No parole supervision |   241|
+| Successful conditional release | Closed prison | No parole supervision |     9|
+| No conditional release         | Open prison   | No parole supervision |   148|
+| Successful conditional release | Open prison   | No parole supervision |    50|
+| No conditional release         | Closed prison | Parole was supervised |   427|
+| Successful conditional release | Closed prison | Parole was supervised |    29|
+| No conditional release         | Open prison   | Parole was supervised |   263|
+| Successful conditional release | Open prison   | Parole was supervised |   170|
 
-The smallest groups (individuals placed in closed prison and not granted conditional release) will not be examined further. That leaves us with the possibility to examine - the effect of placement among those not granted conditional release - the effect of conditional release among those placed in open prison at the end of their sentence.
+The smallest groups (individuals placed in closed prison but granted conditional release, \[9 not supervised, 29 supervised\]) will not be examined further. That leaves us with the possibility to make the following comparisons:
+
+1.  the effect of placement among those not granted conditional release
+    -   when parole was not supervised (closed \[241\] vs. open prison \[148\])
+    -   when parole was supervised (closed \[427\] vs. open \[263\])
+2.  the effect of conditional release among those placed in open prison at the end of their sentence
+    -   when parole was not supervised (no release\[148\] vs. successful release \[50\])
+    -   when parole was supervised (no \[263\] vs. successful \[170\])
