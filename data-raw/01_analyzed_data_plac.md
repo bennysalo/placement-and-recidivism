@@ -219,7 +219,31 @@ stopifnot(nrow(cr_op1_ps0) == (148 + 50))
 stopifnot(nrow(cr_op1_ps1) == (263 + 170))
 ```
 
-Save subsets for later use.
+Make a list for each subset that also contains the name of the effect variable and a description of inclusion criteria.
+
+``` r
+op_cr0_ps0 <- list(effect_variable = "openPrison",
+                   inclusion_criteria = 
+                     "No conditional release, parole NOT supervised",
+                   data = op_cr0_ps0)
+
+op_cr0_ps1 <- list(effect_variable = "openPrison",
+                   inclusion_criteria = 
+                     "No conditional release, parole WAS supervised",
+                   data = op_cr0_ps1)
+
+cr_op1_ps0  <- list(effect_variable = "conditionalReleaseOutcome",
+                   inclusion_criteria = 
+                     "Released from open prison, parole NOT supervised",
+                   data = op_cr0_ps0)
+
+cr_op1_ps1  <- list(effect_variable = "conditionalReleaseOutcome",
+                   inclusion_criteria = 
+                     "Released from open prison, parole WAS supervised",
+                   data = op_cr0_ps1)
+```
+
+Save subset list for later use.
 
 ``` r
 devtools::wd()
