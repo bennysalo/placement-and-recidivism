@@ -196,7 +196,7 @@ all_predictors <- c(static_preds, rita_factors)
 
 ```
 
-## Functions for prepensity score matching
+## Functions for propensity score matching
 Returns a list with the data, and the two formulas.
 
 ```{r}
@@ -324,7 +324,7 @@ append_matching <- function(results_list) {
      return(all_row_numbers)
    }
   
-    # Get indices using the fucntion above
+    # Get indices using the function above
    index_1_2 <- extract_matched_rows(out$match_1t_2c$match.matrix)
    index_2_1 <- extract_matched_rows(out$match_2t_1c$match.matrix)
    
@@ -366,11 +366,11 @@ append_subsets <- function(results_list) {
   lev_ev <- levels(ev)
   lev_sc <- levels(results_list$data[["subclass"]])
   
-  # Make two vectors of levels that when used in parallel creates all ombinations
+  # Make two vectors of levels that when used in parallel creates all combinations
   lev_ev <- rep(lev_ev, 2)
   lev_sc <- rep(lev_sc, each = 2)
   
-  # Create a list of subsets iterating over the two vecors above
+  # Create a list of subsets iterating over the two vectors above
   results_list$list_of_subsets <- map2(
     .x = lev_sc,
     .y = lev_ev,
