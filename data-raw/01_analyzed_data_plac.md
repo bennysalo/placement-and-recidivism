@@ -86,6 +86,31 @@ FinPrisonMales <- FinPrisonMales %>%
                   1, 0))
 ```
 
+Define sets of predictors
+
+The vector `all_predictors` will be used to write the formula for propensity scores.
+
+``` r
+offence_variables <- 
+  stringr::str_subset(names(FinPrisonMales), "^o_")
+
+static_preds <- 
+   c("ageFirstSentence_mr", "ageFirst_missing", "ageAtRelease", 
+     "ps_escapeHistory", "ps_prisonTerms_mr", "ps_comServiceTerms_mr", 
+     "ps_remandTerms_mr", "ps_defaultTerms_mr", "ps_info_missing", 
+     offence_variables)
+
+
+rita_factors <- 
+   c("economy_problems", "alcohol_problems", "resistance_change", 
+     "drug_related_probl", "aggressiveness", "employment_probl") 
+
+
+all_predictors <- c(static_preds, rita_factors)
+
+devtools::use_data(all_predictors, overwrite = TRUE)
+```
+
 Exclusion and inclusion
 =======================
 
@@ -235,13 +260,48 @@ op_cr0_ps1 <- list(effect_variable = "openPrison",
 cr_op1_ps0  <- list(effect_variable = "conditionalReleaseOutcome",
                    inclusion_criteria = 
                      "Released from open prison, parole NOT supervised",
-                   data = op_cr0_ps0)
+                   data = cr_op1_ps0)
 
 cr_op1_ps1  <- list(effect_variable = "conditionalReleaseOutcome",
                    inclusion_criteria = 
                      "Released from open prison, parole WAS supervised",
-                   data = op_cr0_ps1)
+                   data = cr_op1_ps1)
 ```
+
+Assertions. Check that the script above has produced a list with three elements with correct names and of correct classes.
+
+``` r
+check_list_elements <- function(x) {
+  assertthat::assert_that(
+    class(cr_op1_ps1$effect_variable) == "character",
+    class(cr_op1_ps1$inclusion_criteria) == "character",
+    class(cr_op1_ps1$data) == "data.frame",
+    msg = " The list does not contain the expected elements."
+  )
+}
+
+check_list_elements(op_cr0_ps0)
+```
+
+    ## [1] TRUE
+
+``` r
+check_list_elements(op_cr0_ps1)
+```
+
+    ## [1] TRUE
+
+``` r
+check_list_elements(cr_op1_ps0)
+```
+
+    ## [1] TRUE
+
+``` r
+check_list_elements(cr_op1_ps1)
+```
+
+    ## [1] TRUE
 
 Save subset list for later use.
 
