@@ -1,54 +1,56 @@
 Propensity score matching
 ================
 
-The goal of this script is to add three columns to the data frames: - propensity score - subclass (high or low propensity) - matched (yes or no)
+The goal of this script is to take the subset lists generated in *01\_analyzed\_data* and add three columns to the data element:
 
-We do this in the following steps: 1. Calculate propensity scores (seperately for each subset) 2. Divide the subsets into two subclasses (above and below propensity 50%) 3. Do matching within these two subclasses. The high propensity subclass have theoretically more treated individuals and is therefore matched 2 treated to 1 control. Conversely the low propensity group is matched 1 treated to 2 controls.
+-   propensity score
+-   subclass (high or low propensity)
+-   matched (yes or no)
 
-In addition to this we add elements to the subset lists. The complete list will have the following elements: - effect\_variable (name of the variable used as independent variable) - inclusion\_criteria (description as a character string) - data (with the columns above added) - formulas - ordinary - reversed (the effect variable inverted to allow 2 treated to 1 control matching) - matchit (output from matchit) - low (the low propensity subclass) . high (the high propensity subclass)
+We do this in the following steps:
 
-Computationally we start with adding the formulas.
+1.  Calculate propensity scores (separately for each subset)
+2.  Divide the subsets into two subclasses (above and below propensity of 50%)
+3.  Do matching within these two subclasses. The *high propensity subclass* have theoretically more treated individuals and is therefore matched **2 treated to 1 control**. Conversely the *low propensity subclass* is matched **1 treated to 2 controls**.
 
-Import the subset lists
------------------------
+In addition to this we add elements to the subset lists. The complete list will have the following elements:
+
+-   `effect_variable` (name of the variable used as independent variable)
+-   `inclusion_criteria` (description as a character string)
+-   `data` - Added columns are:
+    -   `propensity_score`
+    -   `subclass`
+    -   `matched`
+-   `formulas`
+    -   `ordinary`
+    -   `reversed` (the effect variable inverted to allow 2 treated to 1 control matching)
+-   `matchit` (output from matchit)
+    -   `low` (the low propensity subclass)
+    -   `high` (the high propensity subclass)
+
+Setup
+-----
 
 ``` r
-devtools::wd()
-op_cr0_ps0 <- readRDS("not_public/op_cr0_ps0.rds")
-op_cr0_ps1 <- readRDS("not_public/op_cr0_ps1.rds")
-cr_op1_ps0 <- readRDS("not_public/cr_op1_ps0.rds")
-cr_op1_ps1 <- readRDS("not_public/cr_op1_ps1.rds")
+devtools::load_all(".")
 ```
 
-Write propensity score formulas
--------------------------------
+    ## Loading placementAndRecidivism
 
-### Define sets of predictors
+Functions for each addition to the list
+---------------------------------------
 
-The vector `all_predictors` will be used to write the formula for propensity scores.
+These functions are combined to a single function later.
 
-``` r
-offence_variables <- 
-  stringr::str_subset(names(op_cr0_ps0), "^o_")
+### Write propensity score formulas
 
-static_preds <- 
-   c("ageFirstSentence_mr", "ageFirst_missing", "ageAtRelease", 
-     "ps_escapeHistory", "ps_prisonTerms_mr", "ps_comServiceTerms_mr", 
-     "ps_remandTerms_mr", "ps_defaultTerms_mr", "ps_info_missing", 
-     offence_variables)
+Computationally we start with adding the formulas. They are needed to calculate propensity scores and reused in with the `matchit` function.
 
+We are going to write two formulas: one 'ordinary' and one 'inverted'. The inverted formula is simply the ordinary formula but with the levels in the outcome flipped. We used this to coerce matchit to allow matching two treated with one control. (The role of these groups are flipped when the levels of the outcome is flipped.)
 
-rita_factors <- 
-   c("economy_problems", "alcohol_problems", "resistance_change", 
-     "drug_related_probl", "aggressiveness", "employment_probl") 
+#### Write formula
 
-
-all_predictors <- c(static_preds, rita_factors)
-```
-
-### Functions
-
-A function to write the formula based on given outcome
+A function to write the formula with the arguments: - lhs, the left hand side of the formula - a character string naming the outcome - rhs, the right hand side of the formula - a character vector with all predictors
 
 ``` r
   write_formula <- function(lhs, rhs) {
@@ -58,120 +60,72 @@ A function to write the formula based on given outcome
   } 
 ```
 
-A function to append the list with formulas for propensity score matching. Takes a subset list and adds the 'formulas' element.
+#### Add a list of the two formulas to the subset list
+
+A function to append the list with formulas for propensity score matching. Takes a subset list and adds the 'formulas' element. Writes formulas with different outcomes depending on what effect variable is defined in the subset list.
 
 ``` r
-add_formulas <- function(subset_list, balancing_vars = all_predictors) {
-
-  # This is the format of the output
-  out <- subset_list
-  out$formulas <- list(ordinary = NA, inverted = NA)
+add_formulas <- function(x, balancing_vars = all_predictors) {
+  
+  # Initiate
+  formulas <- x$formulas
 
   # Write the formulas
   # Different formulas depending on the effect_variable
   # Matchit needs dichotomous outcomes so we use those
-  if        (out$effect_variable == "openPrison") {
-    out$formulas$ordinary  <- write_formula("open01", balancing_vars)
-    out$formulas$inverted  <- write_formula("open10", balancing_vars)
+  if        (x$effect_variable == "openPrison") {
+    formulas$ordinary  <- write_formula("open01", balancing_vars)
+    formulas$inverted  <- write_formula("open10", balancing_vars)
     
-  } else if (out$effect_variable == "conditionalReleaseOutcome") {
-    out$formulas$ordinary <- write_formula("cond01", balancing_vars)
-    out$formulas$inverted <- write_formula("cond10", balancing_vars)
+  } else if (x$effect_variable == "conditionalReleaseOutcome") {
+    formulas$ordinary <- write_formula("cond01", balancing_vars)
+    formulas$inverted <- write_formula("cond10", balancing_vars)
 
   } else {
-    warning("Could not determine effect")
+    warning("The effect_variable needs to be either 'openPrison' or
+            'conditionalReleaseOutcome'")
   }
   
-  return(out)
+  return(formulas)
   
 }
 ```
 
-``` r
-op_cr0_ps0 <- add_formulas(op_cr0_ps0)
-```
-
-Calculate propensity scores
----------------------------
+### Calculate propensity scores
 
 ``` r
-add_propensity_scores <- function(subset_list) {
-  
-  # Initiate what we want
-  out                       <- subset_list
-  out$data$propensity_score <- NA
+add_propensity_scores <- function(x) {
   
   # Use the ordinary formula that was written above 
   # to calculate propensity scores
-  fit <- glm(subset_list$formulas$ordinary, 
-             data = subset_list$data, family = binomial)
+  fit <- glm(x$formulas$ordinary, 
+             data = x$data, family = binomial)
   
-  out$data$propensity_score <- predict(fit)
+  propensity_score <- predict(fit)
   
-  return(out)
+  return(propensity_score)
 }
 ```
 
-``` r
-op_cr0_ps0 <- add_propensity_scores(op_cr0_ps0)
-```
+### Do matching
 
-Add subclasses
---------------
+This function takes the results list (with the formulas written) as input and outputs a list of matchit objects (lists of class matchit). Two matchit objects are produced - one for the low propensity group and one for the high propensity group. The caliper argument in matchit is here set to 0.25 for both matching runs. This can be changed via the `my_caliper` argument.
 
 ``` r
-add_subclass <- function(subset_list) {
-  # Initiate what we want
-  out               <- subset_list
-  out$data$subclass <- NA
-  
-  out$data$subclass <- ifelse(out$data$propensity_score < 0, yes = 1, no =  2)
-  out$data$subclass <- factor(out$data$subclass, 
-                              levels = c(1,2),
-                              labels = c("low", "high"))
-  
-  return(out)
-}
-```
-
-``` r
-op_cr0_ps0 <- add_subclass(op_cr0_ps0)
-```
-
-``` r
-split_data_into_subcl <- function(subset_list) {
-  # Intitate what we want
-  out <- subset_list
-  out$subclass_vector <- NA
-  
-  #save the subclass_vector to allow unsplit later
-  out$subclass_vector <- subset_list$data$subclass
-  out$data <- split(out$data, out$subclass_vector)
-  return(out)
-}
-```
-
-``` r
-op_cr0_ps0 <- split_data_into_subcl(op_cr0_ps0)
-```
-
-``` r
-add_matching <- function(subset_list, my_caliper = 0.25) {
+add_matching <- function(x, my_caliper = 0.25) {
   require(MatchIt)
-  # Initiate what we want
-  out <- subset_list
-  out$MatchIt$low
-  out$MatchIt$high
   
-  
+  # Initiate
+  MatchIt_output <- list()
+
   # Perform matching
   # In the low propensity subclass, there are more controls. 
   # We can use the ordinary formula and match treated individuals at a
   # ratio of 2 controls
   
-  out$MatchIt$low  <- 
-    MatchIt::matchit(formula = out$formulas$ordinary,
-                     data    = out$data$low,
+  MatchIt_output$low  <- 
+    MatchIt::matchit(formula = x$formulas$ordinary,
+                     data    = x$data$low,
                      caliper = my_caliper, 
                      ratio   = 2)
   
@@ -180,32 +134,21 @@ add_matching <- function(subset_list, my_caliper = 0.25) {
   # the propensity score formula to predict "non-treatment"
   # We match these controls at a ratio of 2 treated.
   
-  out$MatchIt$high <-
-    MatchIt::matchit(formula = out$formulas$inverted,
-                     data    = out$data$high, 
+  MatchIt_output$high <-
+    MatchIt::matchit(formula = x$formulas$inverted,
+                     data    = x$data$high, 
                      caliper = my_caliper,
                      ratio   = 2)
   
-  return(out)
+  return(MatchIt_output)
 }
 ```
 
-``` r
-op_cr0_ps0 <- add_matching(op_cr0_ps0)
-```
+### Add columns for whether the observation was matched
 
-    ## Loading required package: MatchIt
+We will access the match.matrix element of the matchit output to find the observations that were matched appropriately. We exclude cases that do not have two matches.
 
-    ## Warning in matchit2nearest(structure(c(1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, :
-    ## Not enough control units for 2 matches for each treated unit when matching
-    ## without replacement. Not all treated units will receive 2 matches
-
-Add columns for whether the observation was matched
----------------------------------------------------
-
-Access the match\_matrix element of the matchit output to find the obeservations that were matched appropriately. Excluce cases that do not have two matches
-
-We write a function for extracting indices for the mathced rows
+We write a function for extracting indices in the `match.matrix` for observations that are matched. Takes the match.matrix as input and outputs a numeric vector of the rows of the matched observations (regardless if they are treated or control).
 
 ``` r
   # Extract for each matching the row numbers that have been matched
@@ -213,7 +156,6 @@ We write a function for extracting indices for the mathced rows
     # fully matched observations
 
    extract_matched_rows <- function(match.matrix) {
-     
      # Find rows in match.matrix with a match missing
      not_fully_matched_i <- apply(match.matrix, MARGIN = 1, anyNA)
      # Create a matrix where these are excluded
@@ -226,31 +168,76 @@ We write a function for extracting indices for the mathced rows
    }
 ```
 
-Unsplit
+Add the matched column to data. Takes the subset list (with matchit objects added) and outputs the list including the pertinent column in data.
 
 ``` r
-op_cr0_ps0$data <- unsplit(op_cr0_ps0$data, op_cr0_ps0$subclass_vector)
-```
-
-A function to add information about matching
-
-``` r
-add_matched_col <- function(subset_list) {
-  
- # Initiate what we want
- out <- subset_list
- out$data$matched <- NA
-  
- match_index_low  <- extract_matched_rows(out$MatchIt$low$match.matrix)
- match_index_high <- extract_matched_rows(out$MatchIt$high$match.matrix)
-
- out$data$matched <- "not_matched"
- out$data$matched[c(match_index_low, match_index_high)] <- "matched"
+add_matched_col <- function(x) {
+  # Intitate
+   matched <-  factor(rep(NA, times = nrow(x$data)), 
+                      levels = c("not_matched", "matched"))
+   
+   match_index_low  <- extract_matched_rows(x$MatchIt_output$low$match.matrix)
+   match_index_high <- extract_matched_rows(x$MatchIt_output$high$match.matrix)
+   
+   matched[1:length(matched)] <- "not_matched"
+   matched[c(match_index_low, match_index_high)] <- "matched"
  
- return(out)
+ return(matched)
 }
 ```
 
+Putting it all together
+-----------------------
+
+Combine the previous functions to a single function that adds all the element we want.
+
 ``` r
-op_cr0_ps0 <- add_matched_col(op_cr0_ps0)
+perform_my_matching <- function(x) {
+  
+  # Formulas
+  x$formulas               <- add_formulas(x)
+  # Propensity scores
+  x$data$propensity_score <- add_propensity_scores(x)
+  # Subsclass
+  x$data$subclass          <- factor(ifelse(x$data$propensity_score < 0,
+                                            yes = "low", no =  "high"),
+                                     levels = c("low", "high"))
+
+  # Copy subclass vector for unsplitting
+  x$subclass_vector        <- x$data$subclass
+
+  # Split
+  x$data                   <- split(x$data, x$subclass_vector)
+
+  # MatchIt - output for both subclasses
+  x$MatchIt_output         <- add_matching(x)
+
+  # Unsplit
+  x$data                   <- unsplit(x$data, x$subclass_vector)
+
+  # Column indicating if observation was
+  x$data$matched           <- add_matched_col(x)
+  return(x)
+}
 ```
+
+Run analyses
+------------
+
+### Import the subset lists
+
+``` r
+devtools::wd()
+op_cr0_ps0 <- readRDS("not_public/op_cr0_ps0.rds")
+op_cr0_ps1 <- readRDS("not_public/op_cr0_ps1.rds")
+cr_op1_ps0 <- readRDS("not_public/cr_op1_ps0.rds")
+cr_op1_ps1 <- readRDS("not_public/cr_op1_ps1.rds")
+```
+
+### Add elements
+
+``` r
+op_cr0_ps0 <- perform_my_matching(op_cr0_ps0)
+```
+
+    ## Loading required package: MatchIt
