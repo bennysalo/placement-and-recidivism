@@ -24,6 +24,16 @@ FinPrisonMales <- readRDS("not_public/FinPrisonMales.rds")
 Variables
 =========
 
+Create new variable indicating both placement in open prison and in addition successful conditional release. This will be used for calculating 'overarching propensity score'.
+
+``` r
+FinPrisonMales <- FinPrisonMales %>% 
+  mutate(open_and_cr = 
+           ifelse(openPrison == "Open_prison" & 
+                  conditionalReleaseOutcome == "Successful_conditional_release",
+                  "yes", "no"))
+```
+
 Name levels of the key variables clearly
 
 ``` r
@@ -74,7 +84,9 @@ FinPrisonMales <-
          cond01      = as.numeric(conditionalReleaseGranted) - 1,
          reoffence01 = 
            ifelse(reoffenceThisTerm == "new_prison_sentence",
-                  1, 0))
+                  1, 0),
+         open_and_cr01 = 
+           ifelse(open_and_cr == "yes", 1, 0))
   # The following will probably be deleted.
   # We also want reversed codings with closed and no CR coded as 1
   # We achieve this by subtracting 2. (Results in -1, 0)
