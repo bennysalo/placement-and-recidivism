@@ -1,5 +1,7 @@
 Analyzed data
 ================
+Benny Salo
+2018-06-14
 
 Setup
 =====
@@ -32,7 +34,7 @@ levels(FinPrisonMales$openPrison)
 
 ``` r
 levels(FinPrisonMales$openPrison) <- 
-  c("Closed prison", "Open prison")
+  c("Closed_prison", "Open_prison")
 
 levels(FinPrisonMales$supervisedParole)
 ```
@@ -41,7 +43,7 @@ levels(FinPrisonMales$supervisedParole)
 
 ``` r
 levels(FinPrisonMales$supervisedParole) <-
-  c("No parole supervision", "Parole was supervised")
+  c("No_parole_supervision", "Parole_was_supervised")
 
 levels(FinPrisonMales$conditionalReleaseGranted) 
 ```
@@ -50,7 +52,7 @@ levels(FinPrisonMales$conditionalReleaseGranted)
 
 ``` r
 levels(FinPrisonMales$conditionalReleaseGranted) <- 
-  c("Not granted", "Granted")
+  c("Not_granted", "Granted")
 ```
 
 Exclude irrelevant variables with missing values. Matchit does not allow missing values and they will not be needed anyway.
@@ -61,29 +63,24 @@ index_no_missing <- apply(FinPrisonMales, MARGIN = 2, FUN = anyNA) == FALSE
 FinPrisonMales   <- FinPrisonMales[index_no_missing]
 ```
 
-The package `matchit` uses dichotomous integer variables for outcomes when calculating propensity scores. Add these.
+The package `MatchIt` uses dichotomous integer variables for outcomes when calculating propensity scores. Add these.
 
 ``` r
 FinPrisonMales <-
   FinPrisonMales %>% 
   # Numeric versions of the factors have integers 1 and 2.
   # Subtracting 1 puts them on a logical 0, 1 scale.
-  mutate(open01 = as.numeric(openPrison) - 1,
-         cond01 = as.numeric(conditionalReleaseGranted) - 1,
+  mutate(open01      = as.numeric(openPrison) - 1,
+         cond01      = as.numeric(conditionalReleaseGranted) - 1,
+         reoffence01 = 
+           ifelse(reoffenceThisTerm == "new_prison_sentence",
+                  1, 0))
+  # The following will probably be deleted.
   # We also want reversed codings with closed and no CR coded as 1
   # We achieve this by subtracting 2. (Results in -1, 0)
   # and taking the absolute value (results in 1, 0)
-         open10 = abs(as.numeric(openPrison) - 2),
-         cond10 = abs(as.numeric(conditionalReleaseGranted) - 2))
-```
-
-For the purpose of these analyses code "reoffenceThisTerm" as 0 = no reoffence and 1 reoffence
-
-``` r
-FinPrisonMales <- FinPrisonMales %>% 
-  mutate(reoffenceThisTerm = 
-           ifelse(reoffenceThisTerm == "new_prison_sentence",
-                  1, 0))
+         # open10 = abs(as.numeric(openPrison) - 2),
+         # cond10 = abs(as.numeric(conditionalReleaseGranted) - 2))
 ```
 
 Define sets of predictors
@@ -109,6 +106,8 @@ rita_factors <-
 all_predictors <- c(static_preds, rita_factors)
 
 devtools::use_data(all_predictors, overwrite = TRUE)
+devtools::use_data(static_preds, overwrite = TRUE)
+devtools::use_data(rita_factors, overwrite = TRUE)
 ```
 
 Exclusion and inclusion
@@ -143,10 +142,10 @@ knitr::kable(
   )
 ```
 
-|               |  No conditional release|  Successful conditional relase|  Cancelled conditional release|
-|---------------|-----------------------:|------------------------------:|------------------------------:|
-| Closed prison |                     668|                             38|                             48|
-| Open prison   |                     411|                            220|                             18|
+|                |  No conditional release|  Successful conditional relase|  Cancelled conditional release|
+|----------------|-----------------------:|------------------------------:|------------------------------:|
+| Closed\_prison |                     668|                             38|                             48|
+| Open\_prison   |                     411|                            220|                             18|
 
 We exclude individuals with suspended conditional release. This is the easiest way to handle the confounding that individuals granted conditional release from open prison may have been placed in closed prison if the conditional release was revoked.
 
@@ -157,7 +156,7 @@ analyzed_data_plac <-
 
 # Remove the excluded level for conditional release.
 levels(analyzed_data_plac$conditionalReleaseOutcome) <- 
-  c("No conditional release", "Successful conditional release", NA)
+  c("No_conditional_release", "Successful_conditional_release", NA)
 ```
 
 Further we separate those with their parole supervised and those without supervision.
@@ -172,16 +171,16 @@ knitr::kable(
   )
 ```
 
-| Conditional release            | Placement     | Supervision           |  Freq|
-|:-------------------------------|:--------------|:----------------------|-----:|
-| No conditional release         | Closed prison | No parole supervision |   241|
-| Successful conditional release | Closed prison | No parole supervision |     9|
-| No conditional release         | Open prison   | No parole supervision |   148|
-| Successful conditional release | Open prison   | No parole supervision |    50|
-| No conditional release         | Closed prison | Parole was supervised |   427|
-| Successful conditional release | Closed prison | Parole was supervised |    29|
-| No conditional release         | Open prison   | Parole was supervised |   263|
-| Successful conditional release | Open prison   | Parole was supervised |   170|
+| Conditional release              | Placement      | Supervision             |  Freq|
+|:---------------------------------|:---------------|:------------------------|-----:|
+| No\_conditional\_release         | Closed\_prison | No\_parole\_supervision |   241|
+| Successful\_conditional\_release | Closed\_prison | No\_parole\_supervision |     9|
+| No\_conditional\_release         | Open\_prison   | No\_parole\_supervision |   148|
+| Successful\_conditional\_release | Open\_prison   | No\_parole\_supervision |    50|
+| No\_conditional\_release         | Closed\_prison | Parole\_was\_supervised |   427|
+| Successful\_conditional\_release | Closed\_prison | Parole\_was\_supervised |    29|
+| No\_conditional\_release         | Open\_prison   | Parole\_was\_supervised |   263|
+| Successful\_conditional\_release | Open\_prison   | Parole\_was\_supervised |   170|
 
 The smallest groups (individuals placed in closed prison but granted conditional release, \[9 not supervised, 29 supervised\]) will not be examined further. That leaves us with the possibility to make the following comparisons:
 
@@ -203,8 +202,8 @@ We create a subset for each of the four (2 x 2) comparisons above.
     ``` r
     op_cr0_ps0<-
       analyzed_data_plac %>% 
-      filter(conditionalReleaseOutcome == "No conditional release" & 
-           supervisedParole == "No parole supervision")
+      filter(conditionalReleaseOutcome == "No_conditional_release" & 
+           supervisedParole == "No_parole_supervision")
     ```
 
     -   when parole IS supervised
@@ -212,8 +211,8 @@ We create a subset for each of the four (2 x 2) comparisons above.
     ``` r
     op_cr0_ps1 <-
       analyzed_data_plac %>% 
-      filter(conditionalReleaseOutcome == "No conditional release" & 
-           supervisedParole == "Parole was supervised")
+      filter(conditionalReleaseOutcome == "No_conditional_release" & 
+           supervisedParole == "Parole_was_supervised")
     ```
 
 2.  Effect of conditional release (for individuals placed in open prison)
@@ -222,8 +221,8 @@ We create a subset for each of the four (2 x 2) comparisons above.
     ``` r
     cr_op1_ps0  <-
       analyzed_data_plac %>% 
-      filter(openPrison == "Open prison" &
-           supervisedParole == "No parole supervision")
+      filter(openPrison == "Open_prison" &
+           supervisedParole == "No_parole_supervision")
     ```
 
     -   when parole IS supervised
@@ -231,8 +230,8 @@ We create a subset for each of the four (2 x 2) comparisons above.
     ``` r
     cr_op1_ps1 <- 
       analyzed_data_plac %>% 
-      filter(openPrison == "Open prison" & 
-           supervisedParole == "Parole was supervised")
+      filter(openPrison == "Open_prison" & 
+           supervisedParole == "Parole_was_supervised")
     ```
 
 Assertions. Make sure the subsets have the expected number of observations.
@@ -311,4 +310,5 @@ saveRDS(op_cr0_ps0, "not_public/op_cr0_ps0.rds")
 saveRDS(op_cr0_ps1, "not_public/op_cr0_ps1.rds")
 saveRDS(cr_op1_ps0, "not_public/cr_op1_ps0.rds")
 saveRDS(cr_op1_ps1, "not_public/cr_op1_ps1.rds")
+saveRDS(analyzed_data_plac, "not_public/analyzed_data_plac.rds")
 ```
