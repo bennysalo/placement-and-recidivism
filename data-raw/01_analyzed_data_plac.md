@@ -1,7 +1,7 @@
 Analyzed data
 ================
 Benny Salo
-2018-06-14
+2018-06-18
 
 Setup
 =====
@@ -23,16 +23,6 @@ FinPrisonMales <- readRDS("not_public/FinPrisonMales.rds")
 
 Variables
 =========
-
-Create new variable indicating both placement in open prison and in addition successful conditional release. This will be used for calculating 'overarching propensity score'.
-
-``` r
-FinPrisonMales <- FinPrisonMales %>% 
-  mutate(open_and_cr = 
-           ifelse(openPrison == "Open_prison" & 
-                  conditionalReleaseOutcome == "Successful_conditional_release",
-                  "yes", "no"))
-```
 
 Name levels of the key variables clearly
 
@@ -63,6 +53,26 @@ levels(FinPrisonMales$conditionalReleaseGranted)
 ``` r
 levels(FinPrisonMales$conditionalReleaseGranted) <- 
   c("Not_granted", "Granted")
+
+levels(FinPrisonMales$conditionalReleaseOutcome) 
+```
+
+    ## [1] "No conditional release"        "Successful conditional relase"
+    ## [3] "Cancelled conditional release"
+
+``` r
+levels(FinPrisonMales$conditionalReleaseOutcome) <- 
+  c("No_conditional_release", "Successful_conditional_relase", "Cancelled_conditional_release")
+```
+
+Create new variable indicating both placement in open prison and in addition successful conditional release. This will be used for calculating 'overarching propensity score'.
+
+``` r
+FinPrisonMales <- FinPrisonMales %>% 
+  mutate(open_and_cr = 
+           ifelse(openPrison == "Open_prison" & 
+                  conditionalReleaseOutcome == "Successful_conditional_relase",
+                  "yes", "no"))
 ```
 
 Exclude irrelevant variables with missing values. Matchit does not allow missing values and they will not be needed anyway.
@@ -154,17 +164,17 @@ knitr::kable(
   )
 ```
 
-|                |  No conditional release|  Successful conditional relase|  Cancelled conditional release|
-|----------------|-----------------------:|------------------------------:|------------------------------:|
-| Closed\_prison |                     668|                             38|                             48|
-| Open\_prison   |                     411|                            220|                             18|
+|                |  No\_conditional\_release|  Successful\_conditional\_relase|  Cancelled\_conditional\_release|
+|----------------|-------------------------:|--------------------------------:|--------------------------------:|
+| Closed\_prison |                       668|                               38|                               48|
+| Open\_prison   |                       411|                              220|                               18|
 
 We exclude individuals with suspended conditional release. This is the easiest way to handle the confounding that individuals granted conditional release from open prison may have been placed in closed prison if the conditional release was revoked.
 
 ``` r
 analyzed_data_plac <-
   analyzed_data_plac %>% 
-  filter(conditionalReleaseOutcome != "Cancelled conditional release")
+  filter(conditionalReleaseOutcome != "Cancelled_conditional_release")
 
 # Remove the excluded level for conditional release.
 levels(analyzed_data_plac$conditionalReleaseOutcome) <- 
