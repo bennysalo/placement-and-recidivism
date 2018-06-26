@@ -1,7 +1,7 @@
 Calculate 'overarching propensity' for full sample
 ================
 Benny Salo
-2018-06-18
+2018-06-26
 
 Here we calculate an *overarching propensity score* for the full sample. This is the propensity to be placed in open prison and to ,in addition, be granted and successfully conclude a conditional release.
 
