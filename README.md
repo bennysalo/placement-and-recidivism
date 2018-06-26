@@ -6,4 +6,4 @@ The project will be more closely described on Open Science Framework. See https:
 
 Files are currently being resturctured into a R Package structure. Analyses that are done with data not publicly available are and will be documented in /data-raw
 
-(Readme updated "`r Sys.Date()`")
+(Readme updated "2018-06-26")
